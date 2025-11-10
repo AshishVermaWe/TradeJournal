@@ -12,6 +12,7 @@
   --border:#2a2f3a;
   --radius:6px;
   --sidebar-width:200px;
+
   --exec-buy: #26a69a;      /* TV green */
   --exec-sell: #ef5350;     /* TV red  */
   --exec-partial: #94a3b8;  /* neutral for partials (optional) */
@@ -20,6 +21,10 @@
   --neg:#ef4444; /* loss red */
 
   --content-scale: 8.9; /* 890% expanded */
+
+  /* Brand (your orange TradeJournal mark) */
+  --brand: #f0792f;  /* extracted from your icon */
+  --brand-contrast: #fff3ea;
 }
 
 html.light, body.light {
@@ -312,7 +317,6 @@ body.page-leave .main { opacity: 0; transform: translateY(6px); }
 .amount.neg, .money.neg, td.num.neg  { color: #ef4444 !important; }
 
 /* ------ Execution triangle overlay for trade detail chart (no text) ------ */
-/* ------ Execution triangle overlay for trade detail chart (no text) ------ */
 .exec-overlay {
   position: absolute;
   inset: 0;
@@ -355,3 +359,83 @@ body.page-leave .main { opacity: 0; transform: translateY(6px); }
 .exec-tri.lg.buy   { border-top-width: 7px; border-bottom-width: 7px; border-left-width: 12px; }
 .exec-tri.lg.sell  { border-top-width: 7px; border-bottom-width: 7px; border-right-width: 12px; }
 
+/* ==================================================
+   LABEL SYSTEM (environment/workspace + brand skin)
+   Use: <html data-label="live|sim|dev|test|demo|brand">
+================================================== */
+
+/* Base badge (you can show in header/sidebar) */
+.label-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  height:22px;padding:0 8px;border-radius:999px;
+  font-size:11px;font-weight:700;letter-spacing:.3px;
+  text-transform:uppercase;user-select:none;
+  border:1px solid var(--border); background:var(--card); color:var(--muted);
+}
+
+/* Palette for common labels */
+:root{
+  --label-live:  #16a34a;   /* green   */
+  --label-sim:   #0ea5e9;   /* blue    */
+  --label-dev:   #a855f7;   /* purple  */
+  --label-test:  #f59e0b;   /* amber   */
+  --label-demo:  #ef4444;   /* red     */
+}
+
+/* Pills you can render statically */
+.label-pill.live  { border-color: color-mix(in srgb, var(--label-live) 40%, transparent);
+  background: color-mix(in srgb, var(--label-live) 10%, var(--card));  color: var(--label-live); }
+.label-pill.sim   { border-color: color-mix(in srgb, var(--label-sim) 40%, transparent);
+  background: color-mix(in srgb, var(--label-sim) 10%, var(--card));   color: var(--label-sim); }
+.label-pill.dev   { border-color: color-mix(in srgb, var(--label-dev) 40%, transparent);
+  background: color-mix(in srgb, var(--label-dev) 10%, var(--card));   color: var(--label-dev); }
+.label-pill.test  { border-color: color-mix(in srgb, var(--label-test) 40%, transparent);
+  background: color-mix(in srgb, var(--label-test) 10%, var(--card));  color: var(--label-test); }
+.label-pill.demo  { border-color: color-mix(in srgb, var(--label-demo) 40%, transparent);
+  background: color-mix(in srgb, var(--label-demo) 10%, var(--card));  color: var(--label-demo); }
+
+/* Global re-skin by label */
+html[data-label="live"], body[data-label="live"]{
+  --accent: var(--label-live);
+  --exec-buy: var(--label-live);
+  --exec-sell:#ef4444;
+}
+html[data-label="sim"], body[data-label="sim"]{
+  --accent: var(--label-sim);
+  --exec-buy: var(--label-sim);
+  --exec-sell:#f23645;
+}
+html[data-label="dev"], body[data-label="dev"]{
+  --accent: var(--label-dev);
+  --exec-buy: var(--label-dev);
+  --exec-sell:#ef5350;
+}
+html[data-label="test"], body[data-label="test"]{
+  --accent: var(--label-test);
+}
+html[data-label="demo"], body[data-label="demo"]{
+  --accent: var(--label-demo);
+}
+
+/* Brand skin (uses your orange mark) */
+html[data-label="brand"], body[data-label="brand"]{
+  --accent: var(--brand);
+  --exec-buy: var(--brand);
+  --exec-sell:#ef5350;
+}
+.label-pill.brand{
+  border-color: color-mix(in srgb, var(--brand) 40%, transparent);
+  background: color-mix(in srgb, var(--brand) 12%, var(--card));
+  color: var(--brand);
+}
+
+/* Thin top stripe—great global cue for the active label */
+.label-stripe{
+  position:fixed;inset:0 0 auto 0;height:3px;
+  background:var(--accent);z-index:9999;pointer-events:none;
+}
+
+/* Strengthen accent use in common components */
+.sidebar nav a.active{ background: color-mix(in srgb, var(--accent) 18%, var(--border)); color: var(--fg); }
+.btn{ background: var(--accent); }
+.kpi-value, .tile-value{ color: var(--accent) !important; }

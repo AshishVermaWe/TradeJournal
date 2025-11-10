@@ -37,6 +37,9 @@
     <!-- Styles -->
     <link rel="stylesheet" href="/static/style.css">
 
+    <link rel="icon" href="/static/img/tradejournal-badge.png">
+    <meta name="theme-color" content="#f0792f">
+
     <!-- Plotly -->
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 
@@ -248,6 +251,11 @@
             <span>Import Trades</span>
           </a>
         </nav>
+        <div class="label-stripe" aria-hidden="true"></div>
+        <div class="label-pill brand" id="activeLabelPill">
+          <img src="/static/img/tradejournal-badge.png" alt="logo" style="height:14px;width:14px;border-radius:3px"/>
+          <span id="activeLabelText">TradeJournal</span>
+        </div>
 
         <div class="settings-bar" tabindex="0">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -335,5 +343,47 @@
         }, 700);
       });
     </script>
+    <script>
+(function(){
+  const LABEL = (localStorage.getItem('app:label') || 'brand').toLowerCase();
+
+  function setLabel(label){
+    label = (label||'').toLowerCase();
+    localStorage.setItem('app:label', label);
+    document.documentElement.setAttribute('data-label', label);
+    document.body.setAttribute('data-label', label);
+
+    const pill = document.getElementById('activeLabelPill');
+    if (pill){
+      pill.classList.remove('live','sim','dev','test','demo','brand');
+      pill.classList.add(label);
+      const t = document.getElementById('activeLabelText');
+      if (t){ t.textContent = label==='brand' ? 'TradeJournal' : label; }
+    }
+
+    // Update tab title
+    const titleEl = document.querySelector('title');
+    const base = titleEl?.dataset.baseTitle || document.title.replace(/^\[[^\]]+\]\s*/,'');
+    if (titleEl && !titleEl.dataset.baseTitle) titleEl.dataset.baseTitle = base;
+    document.title = `[${(label==='brand'?'TJ':label).toUpperCase()}] ${base}`;
+
+    // Set favicon
+    const ico = '/static/img/tradejournal-badge.png';
+    let link = document.querySelector('link[rel="icon"]');
+    if(!link){ link = document.createElement('link'); link.rel='icon'; document.head.appendChild(link); }
+    link.href = ico;
+
+    // Theme color for mobile
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if(!meta){ meta = document.createElement('meta'); meta.name='theme-color'; document.head.appendChild(meta); }
+    meta.content = accent || '#f0792f';
+  }
+
+  window.setAppLabel = setLabel;
+  setLabel(LABEL);
+})();
+</script>
+
   </body>
 </html>
