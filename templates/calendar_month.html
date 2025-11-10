@@ -1,0 +1,24 @@
+<section class="page">
+  <div class="header">
+    <h1>${MONTH_NAME}, ${YEAR}</h1>
+    <div>
+      <a class="btn" href="/calendar?year=${YEAR}">Year</a>
+      <a class="btn" href="/calendar/month?year=${YEAR}&month=${PREV_MONTH}">← Prev</a>
+      <a class="btn" href="/calendar/month?year=${YEAR}&month=${NEXT_MONTH}">Next →</a>
+    </div>
+  </div>
+
+  <div class="month-summary">
+    <span>Monthly P/L:</span>
+    <strong class="${MONTH_CLASS}">${MONTH_TOTAL}</strong>
+  </div>
+
+  <div class="calendar">
+    <div class="cal-head">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+    <div class="cal-body">
+      ${DAY_CELLS}
+    </div>
+  </div>
+</section>

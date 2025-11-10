@@ -1,0 +1,27 @@
+<section class="page">
+  <h1>Import Trades</h1>
+  <p class="subtle">Upload your <strong>semicolon</strong>-delimited CSV. New uploads can <em>merge</em> into existing storage.</p>
+
+  <form action="/upload" method="post" enctype="multipart/form-data" class="card" style="gap:10px;display:flex;flex-direction:column;max-width:520px">
+    <div>
+      <label class="label">Select CSV file</label>
+      <input type="file" name="file" accept=".csv" required />
+    </div>
+
+    <label style="display:flex;align-items:center;gap:8px">
+      <input type="checkbox" name="merge" checked />
+      Merge with existing trades (keep history)
+    </label>
+
+    <div style="display:flex;gap:8px">
+      <button type="submit">Upload & Save</button>
+      <button type="submit" name="reset" value="reset" style="background:#ef4444;color:white">Reset Storage</button>
+      <a class="btn" href="/storage/export" style="text-decoration:none">Export JSON</a>
+    </div>
+  </form>
+
+  <div class="tip">
+    <p><strong>Expected headers:</strong></p>
+    <code>Date/Time; Symbol; Side; Quantity; Price; Execution fee; Net P/L; Account; Trading exchange; Symb. type;</code>
+  </div>
+</section>

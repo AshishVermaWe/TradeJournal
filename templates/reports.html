@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Reports</title>
+
+  <link rel="stylesheet" href="/static/style.css">
+
+  <style>
+    :root{
+      --bg:#0f1118; --fg:#e5ecff; --muted:#9aa4b2;
+      --card:#161a24; --border:#2a2f3a; --accent:#00c805;
+      --radius:12px; --gap:20px;
+      --pos:#10b981; --neg:#ef4444;
+    }
+    html.light, body.light {
+      --bg:#f8fafc; --fg:#0f172a; --muted:#64748b;
+      --card:#ffffff; --border:#e2e8f0; --accent:#00c805;
+      --pos:#10b981; --neg:#ef4444;
+    }
+
+    body{ background:var(--bg); color:var(--fg); margin:0; }
+
+    .page{ display:grid; gap:var(--gap); padding:20px; }
+    .header{ display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .actions{ display:flex; gap:10px; align-items:center; }
+
+    .btn{ background:transparent; border:1px solid var(--border); color:var(--fg);
+          padding:8px 12px; border-radius:10px; cursor:pointer; text-decoration:none; }
+    .btn.primary{ background:var(--accent); border:none; color:#071b0a; font-weight:600; }
+    .btn:hover{ filter:brightness(1.05); }
+    .icon-btn{ background:transparent; border:1px solid var(--border); color:var(--fg);
+               padding:4px 8px; border-radius:8px; cursor:pointer; line-height:1; }
+    .icon-btn:hover{ filter:brightness(1.2); }
+
+    .grid{
+      display:grid; gap:24px;
+      grid-template-columns:repeat(2, minmax(420px, 1fr));
+      align-items:start;
+    }
+    @media (max-width: 980px){ .grid{ grid-template-columns:1fr; } }
+
+    .panel{
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+      padding:14px; box-shadow:0 1px 0 rgba(0,0,0,.05);
+      user-select:none;
+    }
+    .widget{ position:relative; }
+    .widget[draggable="true"]{ cursor:move; }
+    .widget.dragging{ opacity:.6; }
+    .drop-hint{ outline:2px dashed var(--accent); outline-offset:-6px; }
+
+    .widget-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .panel h2{ margin:0; font-size:18px; }
+    .plot{ width:100%; min-height:360px; }
+
+    /* KPI tiles (small cards like your screenshot) */
+    .panel.kpi{ padding:12px 14px; }
+    .kpi .plot{ min-height:0; }
+    .kpi .title{ color:var(--muted); font-size:12px; margin-bottom:6px; }
+    .kpi .value{ font-size:22px; font-weight:700; letter-spacing:.2px; }
+    .kpi .value.negative{ color:var(--neg); }
+    .kpi .value.positive{ color:var(--pos); }
+
+    .empty{
+      display:flex; align-items:center; justify-content:center;
+      min-height:320px; color:var(--muted); font-size:14px; text-align:center;
+      border:1px dashed var(--border); border-radius:10px; padding:12px;
+    }
+
+    /* Modal */
+    body.modal-open{ overflow:hidden; }
+    .backdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.55);
+      backdrop-filter:blur(3px); z-index:9998;
+    }
+    .picker{
+      position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+      width:min(980px,92vw); max-height:80vh; overflow:auto; background:var(--card);
+      border:1px solid var(--border); border-radius:16px; padding:16px;
+      box-shadow:0 10px 30px rgba(0,0,0,.35); z-index:9999;
+    }
+    .picker[hidden], .backdrop[hidden]{ display:none; }
+    .picker-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .picker-groups{ display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); }
+    .picker-group{ border:1px dashed var(--border); border-radius:12px; padding:12px; }
+    .picker-group h3{ margin:0 0 8px 0; font-size:16px; color:var(--muted); }
+    .picker-group label{ display:flex; gap:8px; align-items:center; margin:6px 0; user-select:none; }
+    .picker-foot{ display:flex; gap:10px; justify-content:flex-end; margin-top:12px; }
+  </style>
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" defer></script>
+</head>
+<body>
+  <section class="page">
+    <div class="header">
+      <h1>Reports</h1>
+      <div class="actions">
+        <button id="btnAdd" class="btn primary">+ Add Widgets</button>
+        <button id="btnReset" class="btn" title="Restore default widgets">Reset Layout</button>
+        <a class="btn" href="/dashboard">← Back to Dashboard</a>
+      </div>
+    </div>
+
+    <div id="widgetGrid" class="grid"></div>
+  </section>
+
+  <!-- Picker Modal -->
+  <div id="pickerBackdrop" class="backdrop" hidden></div>
+  <div id="picker" class="picker" role="dialog" aria-modal="true" aria-labelledby="pickerTitle" hidden>
+    <div class="picker-head">
+      <h2 id="pickerTitle">Add Widgets</h2>
+      <button id="pickerClose" class="icon-btn" aria-label="Close">✕</button>
+    </div>
+
+    <div class="picker-groups">
+      <div class="picker-group">
+        <h3>KPIs (Numbers)</h3>
+        <label><input type="checkbox" value="kpi_fills"> Fills</label>
+        <label><input type="checkbox" value="kpi_win"> Win %</label>
+        <label><input type="checkbox" value="kpi_total_pl"> Total P/L</label>
+        <label><input type="checkbox" value="kpi_best"> Best</label>
+        <label><input type="checkbox" value="kpi_worst"> Worst</label>
+        <label><input type="checkbox" value="kpi_avg_pl"> Avg P/L</label>
+      </div>
+
+      <div class="picker-group">
+        <h3>Performance (Charts)</h3>
+        <label><input type="checkbox" value="pl_by_symbol"> P/L by Symbol</label>
+        <label><input type="checkbox" value="trades_by_side"> Trades by Side</label>
+        <label><input type="checkbox" value="daily_pl"> Gross Daily P&L (30 Days)</label>
+        <label><input type="checkbox" value="equity_curve"> Gross Cumulative P&L (30 Days)</label>
+        <label><input type="checkbox" value="daily_pl_hist"> Daily P&L Distribution</label>
+        <label><input type="checkbox" value="drawdown_curve"> Drawdown Curve</label>
+        <label><input type="checkbox" value="rolling_win"> Rolling Win% (7 days)</label>
+        <label><input type="checkbox" value="weekday_perf"> Weekday Performance</label>
+        <label><input type="checkbox" value="streaks"> Win/Loss Streaks</label>
+        <label><input type="checkbox" value="best_worst_day"> Best vs Worst Day</label>
+        <label><input type="checkbox" value="profit_factor"> Profit Factor (overall)</label>
+      </div>
+
+      <div class="picker-group">
+        <h3>Risk & Edge (per-trade)</h3>
+        <label><input type="checkbox" value="mae_mfe"> MAE vs MFE (scatter)</label>
+        <label><input type="checkbox" value="r_multiple_hist"> R-Multiple Histogram</label>
+        <label><input type="checkbox" value="time_of_day_heat"> Time-of-Day Heatmap</label>
+        <label><input type="checkbox" value="hold_time_hist"> Holding-Time Histogram</label>
+        <label><input type="checkbox" value="commissions_curve"> Commissions / Fees</label>
+        <label><input type="checkbox" value="setup_perf"> Performance by Setup/Tag</label>
+        <label><input type="checkbox" value="symbol_winrate"> Symbol Win%</label>
+      </div>
+
+      <div class="picker-group">
+        <h3>Activity</h3>
+        <label><input type="checkbox" value="daily_volume"> Daily Volume (30 Days)</label>
+        <label><input type="checkbox" value="win_rate"> Win % (30 Days)</label>
+      </div>
+    </div>
+
+    <div class="picker-foot">
+      <button id="pickerAdd" class="btn primary">Add Selected</button>
+      <button id="pickerCancel" class="btn">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    /* ---------- server-injected data (must be valid JSON) ---------- */
+    const RAW_SYM_DATA   = ${SYM_DATA};
+    const RAW_SIDE_DATA  = ${SIDE_DATA};
+    const RAW_L30_LABELS = ${L30_LABELS};
+    const RAW_L30_DPL    = ${L30_DPL};
+    const RAW_L30_EQ     = ${L30_EQ};
+    const RAW_L30_VOL    = ${L30_VOL};
+    const RAW_L30_WIN    = ${L30_WIN};
+
+    /* Optional: richer per-trade dataset; safe default if not injected */
+    const RAW_TRADES_EXT = []; /* replace with: const RAW_TRADES_EXT = ${TRADES_EXT}; when ready */
+
+    /* ---------- helpers & state ---------- */
+    const toArray = (v, fb=[]) => {
+      if (Array.isArray(v)) return v;
+      if (v == null) return fb;
+      if (typeof v === 'string') { try { return JSON.parse(v); } catch { return fb; } }
+      return fb;
+    };
+    const toNumberArray = (a) => toArray(a).map(x => Number(x) || 0);
+
+    const state = {
+      SYM_DATA:   toArray(RAW_SYM_DATA),
+      SIDE_DATA:  toArray(RAW_SIDE_DATA),
+      L30_LABELS: toArray(RAW_L30_LABELS),
+      L30_DPL:    toNumberArray(RAW_L30_DPL),
+      L30_EQ:     toNumberArray(RAW_L30_EQ),
+      L30_VOL:    toNumberArray(RAW_L30_VOL),
+      L30_WIN:    toNumberArray(RAW_L30_WIN).map(v => Math.max(0, Math.min(100, v))),
+      TRADES_EXT: toArray(RAW_TRADES_EXT)
+    };
+
+    const ensurePlotly = (fn) => { (function wait(){ window.Plotly ? fn() : setTimeout(wait, 10); })(); };
+    const cssVar = (n, fb='') => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || fb;
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+    // ---------- theme (default trace color = green) ----------
+    function getTheme() {
+      return {
+        colors: {
+          bg: cssVar('--bg','#0f1118'), fg: cssVar('--fg','#e5ecff'),
+          card: cssVar('--card','#1a1f2e'), border: cssVar('--border','#2a2f3a'),
+          muted: cssVar('--muted','#64748b'), pos: cssVar('--pos','#10b981'), neg: cssVar('--neg','#ef4444'),
+        },
+        layout: {
+          paper_bgcolor: cssVar('--bg','#0f1118'),
+          plot_bgcolor:  cssVar('--card','#1a1f2e'),
+          font: { color: cssVar('--fg','#e5ecff'), size: 11 },
+          margin: { t: 32, r: 16, b: 50, l: 60 },
+          height: 380,
+          xaxis:{ titlefont:{size:11,color:cssVar('--muted','#64748b')}, tickfont:{color:cssVar('--muted','#64748b')},
+                  gridcolor:cssVar('--border','#2a2f3a'), linecolor:cssVar('--border','#2a2f3a'), automargin:true },
+          yaxis:{ titlefont:{size:11,color:cssVar('--muted','#64748b')}, tickfont:{color:cssVar('--muted','#64748b')},
+                  gridcolor:cssVar('--border','#2a2f3a'), linecolor:cssVar('--border','#2a2f3a'),
+                  zerolinecolor:cssVar('--border','#2a2f3a'), automargin:true },
+          showlegend:false,
+          colorway:[cssVar('--pos','#10b981')],
+        },
+        config:{ staticPlot:false, displayModeBar:true, displaylogo:false, responsive:true }
+      };
+    }
+
+    function plot(el, traces, extraLayout = {}) {
+      const theme = getTheme();
+      const layout = { ...theme.layout, ...extraLayout };
+      window.Plotly.react(el, traces, layout, theme.config);
+    }
+
+    function empty(el, msg){ el.innerHTML = `<div class="empty">${msg}</div>`; }
+
+    function computeDrawdown(equity){
+      let peak = -Infinity, dd = [];
+      for (let v of equity){ peak = Math.max(peak, v); dd.push(peak - v); }
+      return dd;
+    }
+    function rolling(array, win=7, fn=(x)=>x.reduce((a,b)=>a+b,0)/x.length){
+      const out=[]; for(let i=0;i<array.length;i++){ const s=Math.max(0,i-win+1); out.push(fn(array.slice(s,i+1))); }
+      return out;
+    }
+    function streaksFromDaily(dpl){
+      let cur=0, maxWin=0, maxLose=0, series=[];
+      for (let v of dpl){
+        if (v>0){ cur=cur>=0?cur+1:1; maxWin=Math.max(maxWin,cur); series.push(cur); }
+        else if (v<0){ cur=cur<=0?cur-1:-1; maxLose=Math.min(maxLose,cur); series.push(cur); }
+        else series.push(cur);
+      }
+      return {series,maxWin,maxLose};
+    }
+    function weekdaySum(labels, dpl){
+      const map={0:0,1:0,2:0,3:0,4:0,5:0,6:0};
+      labels.forEach((d,i)=>{ const dt=new Date(d+'T00:00:00'); map[dt.getDay()] += (Number(dpl[i])||0); });
+      return map;
+    }
+    function profitFactorFromDaily(dpl){
+      const wins=dpl.filter(v=>v>0).reduce((a,b)=>a+b,0);
+      const losses=dpl.filter(v=>v<0).reduce((a,b)=>a+b,0);
+      return losses===0?null:wins/Math.abs(losses);
+    }
+
+    // ---------- metrics for KPI tiles ----------
+    const metrics = {
+      fills: () => {
+        // Prefer executions if available, else best effort from trades length or 0
+        if (state.TRADES_EXT.length && state.TRADES_EXT[0]?.fills != null) {
+          return state.TRADES_EXT.reduce((a,t)=>a+(Number(t.fills)||0),0);
+        }
+        // If each TRADES_EXT row is an execution, count rows:
+        if (state.TRADES_EXT.length && state.TRADES_EXT[0]?.pnl != null && state.TRADES_EXT[0]?.symbol) {
+          return state.TRADES_EXT.length;
+        }
+        return 0;
+      },
+      winPct: () => {
+        if (state.TRADES_EXT.length && state.TRADES_EXT[0]?.pnl != null) {
+          const n = state.TRADES_EXT.length;
+          const w = state.TRADES_EXT.reduce((a,t)=>a+((Number(t.pnl)||0)>0?1:0),0);
+          return n? (w/n*100): 0;
+        }
+        // fallback: average of daily win% series if provided
+        if (state.L30_WIN.length) return state.L30_WIN.reduce((a,b)=>a+b,0)/state.L30_WIN.length;
+        return 0;
+      },
+      totalPL: () => state.L30_DPL.reduce((a,b)=>a+b,0),
+      best: () => state.L30_DPL.length ? Math.max(...state.L30_DPL) : 0,
+      worst: () => state.L30_DPL.length ? Math.min(...state.L30_DPL) : 0,
+      avgPL: () => state.L30_DPL.length ? state.L30_DPL.reduce((a,b)=>a+b,0)/state.L30_DPL.length : 0
+    };
+
+    // ---------- renderers ----------
+    const renderers = {
+      /* KPI tiles */
+      kpi_fills: (el) => {
+        const v = metrics.fills();
+        el.closest('.panel').classList.add('kpi');
+        el.innerHTML = `<div class="title">Fills</div><div class="value">${v}</div>`;
+      },
+      kpi_win: (el) => {
+        const v = clamp(metrics.winPct(),0,100);
+        el.closest('.panel').classList.add('kpi');
+        el.innerHTML = `<div class="title">Win %</div><div class="value">${v.toFixed(1)}%</div>`;
+      },
+      kpi_total_pl: (el) => {
+        const v = metrics.totalPL();
+        el.closest('.panel').classList.add('kpi');
+        el.innerHTML = `<div class="title">Total P/L</div><div class="value ${v<0?'negative':'positive'}">${v.toFixed(2)}</div>`;
+      },
+      kpi_best: (el) => {
+        const v = metrics.best();
+        el.closest('.panel').classList.add('kpi');
+        el.innerHTML = `<div class="title">Best</div><div class="value positive">${v.toFixed(1)}</div>`;
+      },
+      kpi_worst: (el) => {
+        const v = metrics.worst();
+        el.closest('.panel').classList.add('kpi');
+        el.innerHTML = `<div class="title">Worst</div><div class="value negative">${v.toFixed(1)}</div>`;
+      },
+      kpi_avg_pl: (el) => {
+        const v = metrics.avgPL();
+        el.closest('.panel').classList.add('kpi');
+        el.innerHTML = `<div class="title">Avg P/L</div><div class="value ${v<0?'negative':'positive'}">${v.toFixed(2)}</div>`;
+      },
+
+      /* Charts (kept from your build, green everywhere) */
+      pl_by_symbol: (el) => {
+        const x = state.SYM_DATA.map(r => r.Symbol ?? r.symbol ?? '');
+        const y = state.SYM_DATA.map(r => Number(r.PnL ?? r.pnl ?? 0));
+        const c = y.map(v => v >= 0 ? cssVar('--pos') : cssVar('--neg'));
+        plot(el, [{ type:'bar', x, y, marker:{ color:c } }], {
+          title:'P/L by Symbol', xaxis:{ title:'Symbol' }, yaxis:{ title:'P/L (USD)' }
+        });
+      },
+      trades_by_side: (el) => {
+        const rows   = state.SIDE_DATA.map(r => ({
+          side:  (r.Side ?? r.side ?? '').toString().toLowerCase(),
+          count: Number(r.Count ?? r.count ?? 0)
+        }));
+        const labels = rows.map(r => r.side.charAt(0).toUpperCase() + r.side.slice(1));
+        const values = rows.map(r => r.count);
+        const colors = rows.map(r => r.side === 'sell'
+          ? cssVar('--neg', '#ef4444')   // Sell -> red
+          : cssVar('--pos', '#10b981')   // Buy  -> green
+        );
+
+        plot(el, [{
+          type: 'pie',
+          labels, values,
+          hole: 0.4,
+          textinfo: 'label+percent',
+          marker: { colors }
+        }], { title: 'Trades by Side' });
+      },
+
+      daily_pl: (el) => {
+        const c = state.L30_DPL.map(v => v >= 0 ? cssVar('--pos') : cssVar('--neg'));
+        plot(el, [{ type:'bar', x: state.L30_LABELS, y: state.L30_DPL, marker:{ color:c } }], {
+          title:'Daily P&L (Trade-Based)', xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'P/L (USD)' }
+        });
+      },
+      equity_curve: (el) => {
+        plot(el, [{
+          x: state.L30_LABELS, y: state.L30_EQ, mode:'lines+markers',
+          line:{ width:2, color: cssVar('--pos') }, marker:{ size:5, color: cssVar('--pos') }
+        }], { title:'Cumulative P&L', xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'Equity (USD)' } });
+      },
+      daily_volume: (el) => {
+        plot(el, [{ type:'bar', x: state.L30_LABELS, y: state.L30_VOL, marker:{ color: cssVar('--pos') } }], {
+          title:'Daily Volume', xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'Shares' }
+        });
+      },
+      win_rate: (el) => {
+        plot(el, [{ type:'bar', x: state.L30_LABELS, y: state.L30_WIN, marker:{ color: cssVar('--pos') } }], {
+          title:'Win % (30 Days)', xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'% Wins', range:[0,100] }
+        });
+      },
+      daily_pl_hist: (el) => {
+        const y = state.L30_DPL; if (!y.length) return empty(el, 'No daily P&L data.');
+        plot(el, [{ type:'histogram', x:y, nbinsx:Math.min(20,Math.ceil(Math.sqrt(y.length))), marker:{ color: cssVar('--pos') } }], {
+          title:'Daily P&L Distribution', xaxis:{ title:'Daily P&L (USD)' }, yaxis:{ title:'Days' }
+        });
+      },
+      drawdown_curve: (el) => {
+        if (!state.L30_EQ.length) return empty(el,'Cumulative equity not provided.');
+        const dd = computeDrawdown(state.L30_EQ);
+        plot(el, [{ x: state.L30_LABELS, y: dd.map(v=>-v), mode:'lines', fill:'tozeroy',
+          line:{ color: cssVar('--pos') }, fillcolor: cssVar('--pos') }], {
+          title:'Drawdown Curve', xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'Drawdown (USD)' }
+        });
+      },
+      rolling_win: (el) => {
+        if (!state.L30_WIN.length) return empty(el, 'Win% not provided.');
+        const rw = rolling(state.L30_WIN, 7, xs=> xs.reduce((a,b)=>a+b,0)/xs.length);
+        plot(el, [{ x: state.L30_LABELS, y: rw, mode:'lines+markers', line:{ color: cssVar('--pos') }, marker:{ color: cssVar('--pos') } }], {
+          title:'Rolling Win% (7 days)', xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'Win %', range:[0,100] }
+        });
+      },
+      weekday_perf: (el) => {
+        if (!state.L30_LABELS.length || !state.L30_DPL.length) return empty(el,'Need dates + daily P&L.');
+        const m = weekdaySum(state.L30_LABELS, state.L30_DPL);
+        const names=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const x=names, y=[m[0],m[1],m[2],m[3],m[4],m[5],m[6]];
+        const c=y.map(v=>v>=0?cssVar('--pos'):cssVar('--neg'));
+        plot(el, [{ type:'bar', x, y, marker:{ color:c } }], { title:'Weekday Performance', xaxis:{ title:'Weekday' }, yaxis:{ title:'P&L (USD)' }});
+      },
+      streaks: (el) => {
+        if (!state.L30_DPL.length) return empty(el,'Daily P&L needed for streaks.');
+        const {series,maxWin,maxLose}=streaksFromDaily(state.L30_DPL);
+        plot(el, [{ x: state.L30_LABELS, y: series, mode:'lines+markers', line:{ color: cssVar('--pos') }, marker:{ color: cssVar('--pos') } }], {
+          title:`Win/Loss Streaks (max W:${maxWin} / L:${Math.abs(maxLose)})`, xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'Streak (days)' }
+        });
+      },
+      best_worst_day: (el) => {
+        const d=state.L30_DPL; if (!d.length) return empty(el,'No daily P&L data.');
+        let maxV=-Infinity, minV=Infinity, maxI=-1, minI=-1;
+        d.forEach((v,i)=>{ if(v>maxV){maxV=v;maxI=i;} if(v<minV){minV=v;minI=i;} });
+        plot(el, [
+          { type:'bar', x:[state.L30_LABELS[maxI]||'—'], y:[maxV], marker:{ color: cssVar('--pos') }, name:'Best' },
+          { type:'bar', x:[state.L30_LABELS[minI]||'—'], y:[minV], marker:{ color: cssVar('--neg') }, name:'Worst' }
+        ], { title:'Best vs Worst Day', barmode:'group', xaxis:{ title:'Day' }, yaxis:{ title:'P&L (USD)' }, showlegend:true });
+      },
+      profit_factor: (el) => {
+        const pf = profitFactorFromDaily(state.L30_DPL);
+        if (pf==null) return empty(el,'Profit factor undefined (no losing days in window).');
+        plot(el, [{ type:'indicator', mode:'number+gauge', value:pf, number:{ valueformat:'.2f' },
+          title:{ text:'Profit Factor (overall)' }, gauge:{ shape:'bullet', axis:{ range:[0, Math.max(2.5, pf*1.2)] }, bar:{ thickness:0.6 } },
+          domain:{ x:[0.1,0.95], y:[0.2,0.8] } }], { margin:{ t:30, l:30, r:30, b:30 }, height:220 });
+      },
+
+      /* per-trade (needs TRADES_EXT) */
+      mae_mfe: (el) => {
+        if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with per-trade MAE/MFE to render this.');
+        const x = state.TRADES_EXT.map(t=>Number(t.mae)||0);
+        const y = state.TRADES_EXT.map(t=>Number(t.mfe)||0);
+        plot(el, [{ x,y, mode:'markers', type:'scattergl', marker:{ size:6, color: cssVar('--pos') } }], {
+          title:'MAE vs MFE (per trade)', xaxis:{ title:'MAE' }, yaxis:{ title:'MFE' }
+        });
+      },
+      r_multiple_hist: (el) => {
+        if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with per-trade R values.');
+        const r = state.TRADES_EXT.map(t=>Number(t.r));
+        plot(el, [{ type:'histogram', x:r, nbinsx:30, marker:{ color: cssVar('--pos') } }], { title:'R-Multiple Distribution', xaxis:{ title:'R' }, yaxis:{ title:'Trades' }});
+      },
+      time_of_day_heat: (el) => {
+        if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with entry_time.');
+        const hours=[...Array(24)].map((_,i)=>i), days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const z=days.map(_=>hours.map(_=>0));
+        state.TRADES_EXT.forEach(t=>{ const dt=new Date(t.entry_time); z[dt.getDay()][dt.getHours()] += Number(t.pnl)||0; });
+        plot(el, [{ type:'heatmap', x:hours, y:days, z:z, colorscale:'Portland', zsmooth:false }], {
+          title:'Time-of-Day Performance (sum P&L)', xaxis:{ title:'Hour' }, yaxis:{ title:'Weekday' }
+        });
+      },
+      hold_time_hist: (el) => {
+        if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with entry_time & exit_time.');
+        const mins = state.TRADES_EXT.map(t=> (new Date(t.exit_time)-new Date(t.entry_time))/60000 ).filter(x=>isFinite(x)&&x>=0);
+        plot(el, [{ type:'histogram', x:mins, nbinsx:30, marker:{ color: cssVar('--pos') } }], { title:'Holding-Time Histogram', xaxis:{ title:'Minutes' }, yaxis:{ title:'Trades' }});
+      },
+      commissions_curve: (el) => {
+        if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with commission per trade.');
+        let cum=0; const x=[], y=[]; [...state.TRADES_EXT].sort((a,b)=> (a.date||'').localeCompare(b.date||''))
+          .forEach(t=>{ cum+=Number(t.commission)||0; x.push(t.date||''); y.push(cum); });
+        plot(el, [{ x,y, mode:'lines+markers', line:{ color: cssVar('--pos') }, marker:{ color: cssVar('--pos') } }], {
+          title:'Cumulative Commissions / Fees', xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'USD' }
+        });
+      },
+      setup_perf: (el) => {
+        if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with tags (setups).');
+        const map=new Map();
+        state.TRADES_EXT.forEach(t=>{ const p=Number(t.pnl)||0; (t.tags||[]).forEach(tag=> map.set(tag,(map.get(tag)||0)+p)); });
+        if (!map.size) return empty(el,'No tags present.');
+        const entries=[...map.entries()].sort((a,b)=>Math.abs(b[1])-Math.abs(a[1])).slice(0,20);
+        const x=entries.map(e=>e[0]), y=entries.map(e=>e[1]), c=y.map(v=>v>=0?cssVar('--pos'):cssVar('--neg'));
+        plot(el, [{ type:'bar', x,y, marker:{ color:c } }], { title:'Performance by Setup / Tag', xaxis:{ automargin:true }, yaxis:{ title:'P&L (USD)' }});
+      },
+      symbol_winrate: (el) => {
+        if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT to compute symbol-level win%.');
+        const bySym=new Map();
+        state.TRADES_EXT.forEach(t=>{ const s=t.symbol||''; const w=(Number(t.pnl)||0)>0?1:0; const cur=bySym.get(s)||{w:0,n:0}; cur.w+=w; cur.n+=1; bySym.set(s,cur); });
+        const entries=[...bySym.entries()].map(([s,v])=>[s, v.n?(v.w/v.n*100):0, v.n]).sort((a,b)=>b[2]-a[2]).slice(0,20);
+        const x=entries.map(e=>e[0]), y=entries.map(e=>e[1]);
+        plot(el, [{ type:'bar', x,y, marker:{ color: cssVar('--pos') } }], { title:'Symbol Win% (top by sample size)', xaxis:{ title:'Symbol' }, yaxis:{ title:'Win %', range:[0,100] }});
+      }
+    };
+
+    /* ---------- persistence ---------- */
+    const STORAGE_KEY = 'reports.widgets.v3';
+    const saveLayout = () => {
+      const ids = [...document.querySelectorAll('#widgetGrid .widget')].map(w => w.dataset.type);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+    };
+    const loadLayout = () => {
+      try { const a = JSON.parse(localStorage.getItem(STORAGE_KEY)); return Array.isArray(a) ? a : null; }
+      catch { return null; }
+    };
+    const resetLayout = () => {
+      const defaults = [
+        'kpi_fills','kpi_win','kpi_total_pl','kpi_best','kpi_worst','kpi_avg_pl',
+        'pl_by_symbol','daily_pl','equity_curve','daily_pl_hist','drawdown_curve','weekday_perf'
+      ];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+      renderFromLayout(defaults);
+    };
+
+    /* ---------- widget factory + drag & drop ---------- */
+    const titles = {
+      kpi_fills:'Fills', kpi_win:'Win %', kpi_total_pl:'Total P/L', kpi_best:'Best', kpi_worst:'Worst', kpi_avg_pl:'Avg P/L',
+      pl_by_symbol:'P/L by Symbol', trades_by_side:'Trades by Side',
+      daily_pl:'Gross Daily P&L (30 Days)', equity_curve:'Gross Cumulative P&L (30 Days)',
+      daily_volume:'Daily Volume (30 Days)', win_rate:'Win % (30 Days)',
+      daily_pl_hist:'Daily P&L Distribution', drawdown_curve:'Drawdown Curve', rolling_win:'Rolling Win% (7 days)',
+      weekday_perf:'Weekday Performance', streaks:'Win/Loss Streaks', best_worst_day:'Best vs Worst Day',
+      profit_factor:'Profit Factor (overall)', mae_mfe:'MAE vs MFE', r_multiple_hist:'R-Multiple Histogram',
+      time_of_day_heat:'Time-of-Day Heatmap', hold_time_hist:'Holding-Time Histogram',
+      commissions_curve:'Commissions / Fees', setup_perf:'Performance by Setup/Tag', symbol_winrate:'Symbol Win%'
+    };
+
+    let wid = 1;
+    const makeWidget = (type) => {
+      const id = `w_${type}_${wid++}`;
+      const w = document.createElement('div');
+      w.className = 'panel widget';
+      w.dataset.type = type;
+      w.id = id;
+      w.setAttribute('draggable','true');
+
+      const isKpi = type.startsWith('kpi_');
+      w.innerHTML = isKpi
+        ? `<div class="plot" id="${id}_plot"></div>
+           <button class="icon-btn" style="position:absolute;top:8px;right:8px" aria-label="Remove">✕</button>`
+        : `<div class="widget-head">
+             <h2>${titles[type] || 'Widget'}</h2>
+             <button class="icon-btn" aria-label="Remove">✕</button>
+           </div>
+           <div class="widget-body"><div class="plot" id="${id}_plot"></div></div>`;
+
+      w.querySelector('.icon-btn').onclick = () => { w.remove(); saveLayout(); };
+
+      // Drag & drop
+      w.addEventListener('dragstart', (e) => {
+        w.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', id);
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      w.addEventListener('dragend', () => { w.classList.remove('dragging'); saveLayout(); });
+
+      w.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const dragging = document.querySelector('.widget.dragging');
+        if (!dragging || dragging === w) return;
+        const grid = document.getElementById('widgetGrid');
+        const rect = w.getBoundingClientRect();
+        const before = (e.clientY - rect.top) < rect.height / 2;
+        if (before) grid.insertBefore(dragging, w);
+        else grid.insertBefore(dragging, w.nextSibling);
+        w.classList.add('drop-hint');
+      });
+      w.addEventListener('dragleave', () => w.classList.remove('drop-hint'));
+      w.addEventListener('drop', () => w.classList.remove('drop-hint'));
+
+      const plotEl = w.querySelector('.plot');
+      ensurePlotly(() => renderers[type]?.(plotEl));
+      return w;
+    };
+
+    function renderFromLayout(layout){
+      const grid = document.getElementById('widgetGrid');
+      grid.innerHTML = '';
+      layout.forEach(t => grid.appendChild(makeWidget(t)));
+    }
+
+    /* ---------- picker logic ---------- */
+    const picker = document.getElementById('picker');
+    const backdrop = document.getElementById('pickerBackdrop');
+    const moveToBodyOnce = (n)=>{ if(n && n.parentElement !== document.body) document.body.appendChild(n); };
+
+    const openPicker = () => {
+      moveToBodyOnce(picker); moveToBodyOnce(backdrop);
+      picker.hidden = false; backdrop.hidden = false;
+      document.body.classList.add('modal-open');
+      const first = picker.querySelector('input[type="checkbox"]'); if (first) first.focus();
+    };
+    const closePicker = () => { picker.hidden = true; backdrop.hidden = true; document.body.classList.remove('modal-open'); };
+
+    document.getElementById('btnAdd').onclick = openPicker;
+    document.getElementById('pickerClose').onclick = closePicker;
+    document.getElementById('pickerCancel').onclick = closePicker;
+    backdrop.onclick = closePicker;
+    document.addEventListener('keydown', e => { if (!picker.hidden && e.key === 'Escape') closePicker(); });
+
+    document.getElementById('pickerAdd').onclick = () => {
+      const selected = [...picker.querySelectorAll('input:checked')].map(i => i.value);
+      const grid = document.getElementById('widgetGrid');
+      selected.forEach(t => grid.appendChild(makeWidget(t)));
+      picker.querySelectorAll('input').forEach(i => i.checked = false);
+      closePicker(); saveLayout();
+    };
+
+    document.getElementById('btnReset').onclick = resetLayout;
+
+    /* ---------- init ---------- */
+    document.addEventListener('DOMContentLoaded', () => {
+      const layout = loadLayout() || [
+        'kpi_fills','kpi_win','kpi_total_pl','kpi_best','kpi_worst','kpi_avg_pl',
+        'pl_by_symbol','daily_pl','equity_curve','daily_pl_hist','drawdown_curve','weekday_perf'
+      ];
+      renderFromLayout(layout);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<section class="page">
+  <div class="header" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+    <h1 style="margin:0;">Trades — ${DATE}</h1>
+    <div style="display:flex;gap:8px;">
+      <a class="btn" href="/calendar/month?year=${YEAR}&month=${MONTH}">← Back to Month</a>
+      <a class="btn" href="/trades">All Trades</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="table-wide">
+        <thead>
+          <tr>
+            <th style="text-align:left;">Time</th>
+            <th style="text-align:left;">Symbol</th>
+            <th style="text-align:left;">Side</th>
+            <th class="num">Volume</th>
+            <th class="num">P/L</th>
+            <th class="num">Executions</th>
+            <th style="text-align:left;">Status</th>
+          </tr>
+        </thead>
+        <tbody>${TABLE}</tbody>
+      </table>
+    </div>
+  </div>
+</section>

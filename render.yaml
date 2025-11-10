@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: trade-journal
+    env: docker
+    plan: free          # or "starter" / "standard" as you like
+    region: oregon      # or closer region if available
+    buildCommand: ""    # Dockerfile handles build
+    startCommand: ""    # Dockerfile CMD starts app
+    # Render will pass PORT automatically
+    disk:
+      name: journal-data
+      mountPath: /app/data
+      sizeGB: 1

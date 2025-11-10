@@ -1,0 +1,165 @@
+<section class="page">
+  <div class="header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <h1 style="margin:0;">Dashboard</h1>
+    <a class="btn" href="/upload">+ Import Trades</a>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">Fills</div><div class="kpi-value">${TRADES}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Win %</div><div class="kpi-value">${WINRATE}%</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total P/L</div><div class="kpi-value">${TOTALPL}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Best</div><div class="kpi-value">${BEST}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Worst</div><div class="kpi-value">${WORST}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg P/L</div><div class="kpi-value">${AVG}</div></div>
+  </div>
+
+  <!-- Two-up charts -->
+  <div class="grid-2">
+    <div class="card chart-card">
+      <div class="panel-title">Equity Curve</div>
+      <div id="equity"></div>
+    </div>
+    <div class="card chart-card">
+      <div class="panel-title">Daily P/L (Trade-Based)</div>
+      <div id="daily"></div>
+    </div>
+  </div>
+</section>
+
+
+<script>
+  // ====== server data (unchanged) ======
+  const LABELS = ${LABELS};
+  const DAILY  = ${DAILY};
+  const EQUITY = ${EQUITY};
+
+  // kept for compatibility (even if unused here)
+  const L30_LABELS = ${L30_LABELS};
+  const L30_DPL    = ${L30_DPL};
+  const L30_EQ     = ${L30_EQ};
+  const L30_VOL    = ${L30_VOL};
+  const L30_WIN    = ${L30_WIN};
+
+  // ====== original helpers (safePlot stays the same behavior) ======
+  function safePlot(id, data, layout, config){
+    const el = document.getElementById(id);
+    if(!el) return;
+    Plotly.react(el, data, layout, config);
+  }
+
+  // ====== theme helpers (new) ======
+  const cssVar = (name, fb='') =>
+    getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fb;
+
+  function themedLayout(base, axisYTitle) {
+    // Pull from your CSS variables
+    const bg     = cssVar('--bg', '#0f1118');
+    const fg     = cssVar('--fg', '#e5ecff');
+    const card   = cssVar('--card', '#1a1f2e');
+    const border = cssVar('--border', '#2a2f3a');
+    const muted  = cssVar('--muted', '#64748b');
+
+    // Merge your original layout with themed colors
+    const lay = Object.assign({}, base, {
+      paper_bgcolor: bg,
+      plot_bgcolor:  card,
+      font: { color: fg, size: (base.font?.size ?? 11) },
+      xaxis: Object.assign({}, base.xaxis, {
+        gridcolor: border,
+        linecolor: border,
+        tickfont:  { color: muted },
+        titlefont: { size: base.xaxis?.titlefont?.size ?? 11, color: muted },
+        automargin: true
+      }),
+      yaxis: Object.assign({}, base.yaxis, {
+        title: axisYTitle || base.yaxis?.title,
+        gridcolor: border,
+        linecolor: border,
+        zerolinecolor: border,
+        tickfont:  { color: muted },
+        titlefont: { size: base.yaxis?.titlefont?.size ?? 11, color: muted },
+        automargin: true
+      }),
+    });
+
+    return lay;
+  }
+
+  function barColorsFromTheme(values){
+    const pos = cssVar('--pos', '#10b981');
+    const neg = cssVar('--neg', '#ef4444');
+    return (values || []).map(v => v >= 0 ? pos : neg);
+  }
+
+  // ====== your original chart base layout (kept) ======
+  const chartLayoutBase = {
+    template: 'plotly_white',
+    height: 360,
+    margin: { l:45, r:10, t:12, b:50 },
+    autosize: true,
+    responsive: true,
+    // keep your original font sizing & axis titles
+    font: { size: 11 },
+    xaxis: { title: 'Date', titlefont: { size: 11 } },
+    yaxis: { title: '', titlefont: { size: 11 } }
+  };
+
+  // ====== render functions (same traces as before) ======
+  function renderEquity() {
+    const layout = themedLayout(
+      chartLayoutBase,
+      'Equity (USD)'
+    );
+
+    safePlot(
+      'equity',
+      [{ x: LABELS, y: EQUITY, mode: 'lines+markers', name: 'Equity' }],
+      layout
+      // No config passed -> Plotly defaults (all original options)
+    );
+  }
+
+  function renderDaily() {
+    // build themed base layout
+    const base = Object.assign({}, chartLayoutBase, {
+      yaxis: { title: 'P/L (USD)', titlefont: { size: 11 } }
+    });
+    const layout = themedLayout(base, 'P/L (USD)');
+
+    // make the zero line thick and black
+    layout.yaxis = Object.assign({}, layout.yaxis, {
+      zeroline: true,
+      zerolinewidth: 2,       // thicker line
+      zerolinecolor: '#000'   // pure black
+    });
+
+    const dailyColors = barColorsFromTheme(DAILY);
+
+    safePlot(
+      'daily',
+      [
+        {
+          type: 'bar',
+          x: LABELS,
+          y: DAILY,
+          marker: { color: dailyColors },
+          name: 'Daily P/L'
+        }
+      ],
+      layout
+    );
+  }
+
+
+  // initial render
+  renderEquity();
+  renderDaily();
+
+  // re-theme on dark/light toggle (no behavior change, just colors)
+  const mo = new MutationObserver(() => {
+    renderEquity();
+    renderDaily();
+  });
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+</script>

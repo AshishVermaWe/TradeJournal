@@ -1,0 +1,348 @@
+<section class="page" style="max-width:none;width:100%;padding:20px 40px;">
+  <!-- Filters -->
+  <div class="header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+    <h1 style="margin:0;font-size:26px;">Journal</h1>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <select id="symbolSel" class="input" title="Symbol">${SYMBOL_OPTIONS}</select>
+      <select id="tagSel" class="input" title="Tag">${TAG_OPTIONS}</select>
+
+      <select id="sideSel" class="input" title="Side">
+        <option value="">All</option>
+        <option>Long</option>
+        <option>Short</option>
+      </select>
+
+      <select id="durSel" class="input" title="Duration">
+        <option value="">All</option>
+        <option>Scalp</option>
+        <option>Intraday</option>
+        <option>Multi-day</option>
+      </select>
+
+      <input id="fromDate" type="date" class="input" title="From">
+      <input id="toDate" type="date" class="input" title="To">
+
+      <button id="applyBtn" class="btn">Apply</button>
+    </div>
+  </div>
+
+  <!-- Pager top -->
+  <div id="pagerTop" class="pager"></div>
+
+  <!-- Day cards -->
+  <div id="daysWrap"></div>
+
+  <!-- Pager bottom -->
+  <div id="pagerBot" class="pager"></div>
+</section>
+
+<style>
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 20px;
+    border-radius: var(--radius);
+    width: 100%;
+  }
+
+  .muted { color: var(--muted); font-size: 13px; }
+  .pos { color: var(--pos); }
+  .neg { color: var(--neg); }
+  .big { font-size: 22px; font-weight: 600; }
+
+  .input {
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 15px;
+  }
+
+  .btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 15px;
+    cursor: pointer;
+  }
+
+  .btn-muted {
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--border);
+  }
+
+  .table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 15px;
+  }
+
+  .table th, .table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+
+  .num { text-align: right; }
+
+  .day-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .day-row {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 20px;
+  }
+
+  .mini-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px;
+    width: 100%;
+  }
+
+  .mini-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .mini-plt {
+    width: 100%;
+    height: 130px;
+  }
+
+  .pill {
+    font-size: 13px;
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .notes textarea {
+    width: 100%;
+    min-height: 240px;
+    font-size: 15px;
+    line-height: 1.45;
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .table-wrap { overflow-x: auto; }
+
+  .pager {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0;
+  }
+
+  .pager button {
+    background: var(--card);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .pager .current { background: var(--accent); color: #000; }
+</style>
+
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+<script>
+(function(){
+  const qs = (s)=>document.querySelector(s);
+  const wrap = qs('#daysWrap');
+  const pagerTop = qs('#pagerTop');
+  const pagerBot = qs('#pagerBot');
+  const symbol = qs('#symbolSel');
+  const tag    = qs('#tagSel');
+  const side   = qs('#sideSel');
+  const dur    = qs('#durSel');
+  const fromEl = qs('#fromDate');
+  const toEl   = qs('#toDate');
+  let page = 1;
+  const perPage = 50;
+
+  function moneyNum(x){
+    const n = Number(x||0);
+    const cls = n >= 0 ? 'pos' : 'neg';
+    return `<span class="${cls}">$${n.toFixed(2)}</span>`;
+  }
+
+  function prettyLocalDate(iso) {
+    const [y,m,d] = iso.split('-').map(Number);
+    const dt = new Date(y, m-1, d);
+    return dt.toLocaleDateString(undefined, {weekday:'short', year:'numeric', month:'short', day:'numeric'});
+  }
+
+  function pill(label, valueHtml){
+    return `<div class="kpi"><div class="muted">${label}</div><div class="big">${valueHtml}</div></div>`;
+  }
+
+  function kpiStrip(s, dateStr){
+    const netId = `net_${dateStr.replaceAll('-','_')}`;
+    return `
+      <div class="kpis">
+        ${pill('Total Trades', (s.total_trades||0))}
+        ${pill('Total Volume', (s.total_volume||0))}
+        ${pill('Win %', ((s.win_rate||0).toFixed(1) + '%'))}
+        ${pill('Commissions/Fees', '$' + Number(s.fees||0).toFixed(2))}
+        <div class="kpi"><div class="muted">Net P&amp;L</div><div class="big" id="${netId}">${moneyNum(s.net_pl||0)}</div></div>
+      </div>`;
+  }
+
+  function tradeTableRows(day){
+    return (day.trades||[]).map(r=>{
+      const cls = (Number(r.pl||0) >= 0) ? 'pos' : 'neg';
+      const tags = Array.isArray(r.tags) ? r.tags.join(", ") : (r.tags||"");
+      return `<tr>
+        <td>${r.time||''}</td>
+        <td>${r.id ? `<a class="link" href="/trade?id=${r.id}">${r.symbol||''}</a>` : (r.symbol||'')}</td>
+        <td class="num">${r.volume||0}</td>
+        <td class="num">${r.execs||0}</td>
+        <td class="num"><span class="${cls}">$${Number(r.pl||0).toFixed(2)}</span></td>
+        <td class="num muted">—</td>
+        <td>${r.notes||''}</td>
+        <td>${tags}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function dayCard(day){
+    const dstr = day.date;
+    const pretty = prettyLocalDate(dstr);
+    const kpis = kpiStrip(day.stats||{}, dstr);
+    const miniId = `mini_${dstr.replaceAll('-','_')}`;
+    const notesId = `notes_${dstr.replaceAll('-','_')}`;
+
+    return `
+      <div class="panel">
+        <div class="day-head">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <h2 style="margin:0;font-size:20px;">${pretty}</h2>
+            <span class="pill">P&amp;L: ${moneyNum((day.stats||{}).net_pl||0)}</span>
+          </div>
+          <button class="btn" data-action="saveNote" data-date="${dstr}" data-notesid="${notesId}">Save note</button>
+        </div>
+
+        <div class="day-row">
+          <div class="mini-card">
+            <div class="mini-head"><div class="muted">Day P&amp;L</div></div>
+            <div id="${miniId}" class="mini-plt" role="img" aria-label="Intraday P&amp;L"></div>
+          </div>
+
+          <div>
+            ${kpis}
+            <div class="notes">
+              <textarea id="${notesId}" class="input" style="width:100%;resize:vertical;" placeholder="Notes for ${dstr}..."></textarea>
+            </div>
+            <div class="table-wrap" style="margin-top:10px;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Time</th><th>Symbol</th><th>Volume</th><th>Execs</th><th>P&amp;L</th><th>Shared</th><th>Notes</th><th>Tags</th>
+                  </tr>
+                </thead>
+                <tbody>${tradeTableRows(day)}</tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function drawMiniPL(divId, isoDate) {
+    fetch(`/api/journal/day_pl?date=${encodeURIComponent(isoDate)}`)
+      .then(r => r.json())
+      .then(s => {
+        const x = s.ts || [];
+        const y = s.cum || [];
+        const last = y.length ? y[y.length - 1] : 0;
+        const netEl = document.getElementById(`net_${isoDate.replaceAll('-', '_')}`);
+        if (netEl) netEl.innerHTML = moneyNum(last);
+
+        Plotly.newPlot(divId, [{
+          type: 'scatter',
+          mode: 'lines',
+          x: x.map(t => new Date(t * 1000)),
+          y,
+          line: { width: 1.6, color: '#00b050' },
+          hovertemplate: '%{x|%I:%M %p}<br><b>$%{y:.2f}</b><extra></extra>'
+        }], {
+          margin: { l: 35, r: 5, t: 5, b: 25 },
+          height: 120,
+          paper_bgcolor: 'rgba(0,0,0,0)',
+          plot_bgcolor: 'rgba(0,0,0,0)',
+          xaxis: { showgrid: false, showline: true, linewidth: 1, linecolor: 'var(--border)', tickfont: { size: 10 } },
+          yaxis: { showgrid: false, zeroline: true, zerolinecolor: '#999', tickfont: { size: 10 } },
+          hoverlabel: { bgcolor: 'var(--card)', bordercolor: 'var(--border)', font: { color: 'var(--fg)', size: 11 } }
+        }, { staticPlot: false, displayModeBar: false });
+      })
+      .catch(()=>{});
+  }
+
+  function load(){
+    const params = new URLSearchParams({
+      page: page, per_page: perPage,
+      symbol: symbol.value, tag: tag.value, side: side.value, duration: dur.value
+    }).toString();
+
+    fetch(`/api/journal/days?${params}`)
+      .then(r=>r.json())
+      .then(j=>{
+        wrap.innerHTML = (j.days||[]).map(dayCard).join("");
+        (j.days||[]).forEach(d=>{
+          fetch(`/api/journal/notes?date=${encodeURIComponent(d.date)}`)
+            .then(r=>r.json()).then(n=>{
+              const el = qs(`#notes_${d.date.replaceAll('-','_')}`);
+              if (el) el.value = n.text || "";
+            });
+          drawMiniPL(`mini_${d.date.replaceAll('-','_')}`, d.date);
+        });
+      });
+  }
+
+  document.addEventListener('click', e=>{
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    if (btn.dataset.action === 'saveNote') {
+      const date = btn.dataset.date;
+      const val = qs(`#${btn.dataset.notesid}`)?.value || "";
+      fetch('/api/journal/notes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({date, text: val}) });
+    }
+  });
+
+  qs('#applyBtn').addEventListener('click', ()=>{ page = 1; load(); });
+  load();
+})();
+</script>

@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+venv/
+.build/
+.git/
+.gitignore
+*.log
+node_modules/
+dist/
+build/
+# keep data out of image cache (it’s a mount on Render)
+data/*
+!data/.gitkeep

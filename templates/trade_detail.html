@@ -1,0 +1,335 @@
+<section class="page" aria-labelledby="trade-title">
+  <div class="header" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+    <h1 id="trade-title" style="margin:0;display:flex;align-items:center;gap:10px;">
+      Trade <span style="opacity:.8">#${TID}</span>
+    </h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn" id="copySymbolBtn" type="button" title="Copy symbol">${SYMBOL} ⧉</button>
+      <button class="btn" id="exportCsvBtn" type="button" title="Export executions CSV">Export CSV</button>
+      <a class="btn" href="/trades">← All Trades</a>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="panel-title" style="margin-bottom:10px;">Summary</div>
+    <div style="display:grid;grid-template-columns: repeat(8, minmax(0,1fr));gap:12px;">
+      <div>
+        <div class="kpi-label">Symbol</div>
+        <div class="kpi-value" style="font-size:18px;display:flex;align-items:center;gap:8px;">
+          ${SYMBOL}
+          <span class="badge" style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:999px;opacity:.8;">${ACCOUNT}</span>
+        </div>
+      </div>
+      <div>
+        <div class="kpi-label">Side</div>
+        <div class="kpi-value" style="font-size:18px;">
+          <span style="padding:2px 8px;border-radius:999px;border:1px solid var(--border);" class="${SIDE_CLASS}">${SIDE}</span>
+        </div>
+      </div>
+      <div><div class="kpi-label">Volume</div><div class="kpi-value" style="font-size:18px;">${VOL}</div></div>
+      <div>
+        <div class="kpi-label">Status</div>
+        <div class="kpi-value" style="font-size:18px;">
+          <span style="padding:2px 8px;border-radius:999px;border:1px solid var(--border);" class="${STATUS_CLASS}">${STATUS}</span>
+        </div>
+      </div>
+      <div><div class="kpi-label">Open</div><div class="kpi-value" style="font-size:16px;font-weight:600;">${OPEN}</div></div>
+      <div><div class="kpi-label">Close</div><div class="kpi-value" style="font-size:16px;font-weight:600;">${CLOSE}</div></div>
+      <div><div class="kpi-label">Fees</div><div class="kpi-value" style="font-size:18px;">${FEES}</div></div>
+      <div><div class="kpi-label">P/L</div><div class="kpi-value ${PNL_CLASS}" style="font-size:22px;font-weight:700;">${PNL}</div></div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="panel-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+      <span>Price Chart (1m)</span>
+      <div style="font-size:12px;opacity:.8;">${SYMBOL} • full day</div>
+    </div>
+
+    <div id="tv-wrap" style="height:520px;position:relative;">
+      <div id="tv-chart" style="position:absolute;inset:0;"></div>
+      <div id="tv-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;opacity:.7;">
+        <div>No intraday candles available.</div>
+      </div>
+    </div>
+
+    <!-- Executions JSON + context for JS -->
+    <script id="trade-execs"
+            type="application/json"
+            data-symbol="${SYMBOL}"
+            data-trade-date="${TRADE_DATE_YYYYMMDD}">
+      ${EXECS_JSON}
+    </script>
+  </div>
+
+  <!-- Executions table -->
+  <div class="card">
+    <div class="panel-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+      <span>Executions</span>
+      <div style="font-size:12px;opacity:.8;">${EX_COUNT} fills</div>
+    </div>
+
+    <div class="table-wrap" style="--sticky-top: 0;">
+      <table class="table-wide" id="execTable">
+        <thead style="position:sticky;top:var(--sticky-top);z-index:1;">
+          <tr>
+            <th style="text-align:left;white-space:nowrap;">Date/Time</th>
+            <th style="text-align:left;">Symbol</th>
+            <th style="text-align:left;">Side</th>
+            <th class="num">Qty</th>
+            <th class="num">Price</th>
+            <th class="num">Fees</th>
+            <th class="num">P/L (Cum.)</th>
+            <th class="num">Position After</th>
+            <th style="text-align:left;">Account</th>
+            <th style="text-align:left;">Exchange</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${EX_ROWS}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Chart + UI logic -->
+<script>
+(async function () {
+  // ----- Quick UI helpers -----
+  var copyBtn = document.getElementById('copySymbolBtn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function () {
+      try {
+        var txt = this.textContent.replace('⧉','').trim();
+        navigator.clipboard.writeText(txt);
+        this.textContent = 'Copied!';
+        setTimeout(() => this.textContent = txt + ' ⧉', 900);
+      } catch (e) {}
+    });
+  }
+
+  var exportBtn = document.getElementById('exportCsvBtn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', function () {
+      var table = document.getElementById('execTable');
+      if (!table) return;
+      var rows = Array.from(table.querySelectorAll('tr'));
+      var csv = rows.map(function (tr) {
+        return Array.from(tr.children).map(function (td) {
+          var t = (td.innerText || '').replaceAll('"','""').trim();
+          return '"' + t + '"';
+        }).join(',');
+      }).join('\\r\\n');
+      var blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'trade_' + '${TID}' + '_executions.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+  }
+
+  // ----- Elements & data -----
+  const wrap  = document.getElementById('tv-wrap');
+  const el    = document.getElementById('tv-chart');
+  const empty = document.getElementById('tv-empty');
+  const holder = document.getElementById('trade-execs');
+  if (!wrap || !el || !holder) return;
+
+  const SYMBOL    = holder.dataset.symbol;
+  const TRADE_YMD = holder.dataset.tradeDate;
+
+  let EXECS = [];
+  try { EXECS = JSON.parse((holder.textContent || '').trim() || '[]'); } catch (_) {}
+
+  // Normalize exec times and map to nearest candle time (1m bars)
+  const toUnix = t => Math.floor(new Date(t).getTime() / 1000);
+  const snapMinute = (s) => Math.floor(Number(s) / 60) * 60;
+
+  let sorted = (EXECS || []).map(ex => ({
+    ...ex,
+    _epoch: (typeof ex.ts === 'number' && isFinite(ex.ts)) ? ex.ts : toUnix(ex.time)
+  })).sort((a, b) => a._epoch - b._epoch);
+
+  // After candles load, we’ll compute _bar for each exec
+  let candleTimes = [];
+  function bindExecsToBars(candles) {
+    candleTimes = candles.map(c => Number(c.time));
+    // Fast nearest search (linear is fine for day of 1m bars)
+    function nearestBarTime(t) {
+      const snapped = snapMinute(t);
+      // exact hit quick-path
+      if (candleTimes.indexOf(snapped) !== -1) return snapped;
+      // otherwise nearest by absolute diff
+      let best = candleTimes[0], bestDiff = Math.abs(snapped - candleTimes[0]);
+      for (let i = 1; i < candleTimes.length; i++) {
+        const d = Math.abs(snapped - candleTimes[i]);
+        if (d < bestDiff) { best = candleTimes[i]; bestDiff = d; }
+        else if (candleTimes[i] > snapped && d > bestDiff) break; // small early exit
+      }
+      return best;
+    }
+    sorted = sorted.map(ex => ({ ...ex, _bar: nearestBarTime(ex._epoch) }));
+  }
+
+  // ----- Load Lightweight-Charts -----
+  try { delete window.LightweightCharts; } catch (_) { window.LightweightCharts = undefined; }
+  function loadLWC(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src; s.async = true;
+      s.onload = resolve; s.onerror = () => reject(new Error('Failed to load ' + src));
+      document.head.appendChild(s);
+    });
+  }
+  await loadLWC('https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js');
+  if (!window.LightweightCharts || typeof LightweightCharts.createChart !== 'function') {
+    empty.style.display = 'flex'; return;
+  }
+  const LWC = window.LightweightCharts;
+
+  // ----- Fetch minute candles for the trade day -----
+  const qs = new URLSearchParams({ symbol: SYMBOL });
+  if (TRADE_YMD) qs.set('date', TRADE_YMD);
+
+  let candles = [];
+  try {
+    const r = await fetch('/api/candles?' + qs.toString(), { cache: 'no-store' });
+    const j = await r.json();
+    candles = j.candles || [];
+    bindExecsToBars(candles);
+  } catch (e) {}
+
+  if (!candles.length) { empty.style.display = 'flex'; return; }
+
+  // ----- Build chart (dark-mode readable labels) -----
+  const size = () => ({ width: wrap.clientWidth || 800, height: wrap.clientHeight || 520 });
+
+  const isLight = document.documentElement.classList.contains('light') || document.body.classList.contains('light');
+  const textColor = isLight ? '#334155' : '#cbd5e1'; // dark mode: light text
+
+  const lwcChart = LWC.createChart(el, {
+    ...size(),
+    layout: { background: { color: 'transparent' }, textColor: textColor },
+    rightPriceScale: { borderColor: 'rgba(255,255,255,.10)' },
+    timeScale: { borderColor: 'rgba(255,255,255,.10)', timeVisible: true, secondsVisible: false },
+    grid: { vertLines: { color: 'rgba(255,255,255,.06)' }, horzLines: { color: 'rgba(255,255,255,.06)' } },
+    crosshair: { mode: LWC.CrosshairMode.Normal },
+  });
+
+  // Candles
+  const candleSeries = lwcChart.addCandlestickSeries({
+    upColor: '#26a69a',
+    downColor: '#ef5350',
+    borderVisible: false,
+    wickUpColor: '#26a69a',
+    wickDownColor: '#ef5350',
+  });
+  candleSeries.setData(candles.map(c => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close })));
+
+  // Volume – slim bottom band (~8%)
+  const volSeries = lwcChart.addHistogramSeries({
+    priceScaleId: '',
+    priceFormat: { type: 'volume' },
+    overlay: true,
+    scaleMargins: { top: 0.92, bottom: 0.00 }
+  });
+  volSeries.setData(candles.map(c => ({
+    time: c.time,
+    value: c.volume,
+    color: (c.close >= c.open) ? '#26a69a' : '#ef5350'
+  })));
+
+  // Label markers (Entry / Partial / Exit) with softer colors for partials
+  const lastIdx = Math.max(sorted.length - 1, 0);
+  const labelMarkers = sorted.map((ex, i) => {
+    const isBuy  = /^(buy|bot|long)$/i.test(ex.side || '');
+    const labelKind = (i === 0) ? 'Entry' : (i === lastIdx ? 'Exit' : 'Partial');
+    const qty  = ex.qty != null ? String(ex.qty) : '';
+    const px   = Number(ex.price);
+    const color = (labelKind === 'Partial') ? '#94a3b8' : (isBuy ? '#26a69a' : '#ef5350');
+    const shape = (labelKind === 'Partial') ? 'circle' : (isBuy ? 'arrowUp' : 'arrowDown');
+    const position = (labelKind === 'Partial') ? 'inBar' : (isBuy ? 'belowBar' : 'aboveBar');
+    return {
+      time: Number(ex._bar),
+      position, shape, color,
+      text: `${labelKind}: ${isBuy ? 'Buy' : 'Sell'}${qty ? ' ' + qty : ''} @ ${isFinite(px) ? px.toFixed(2) : ''}`
+    };
+  });
+  candleSeries.setMarkers(labelMarkers);
+
+  lwcChart.timeScale().fitContent();
+
+  // ---------- Triangle overlay (DOM) ----------
+  const candleByTime = new Map(candles.map(c => [c.time, c]));
+
+  const overlay = document.createElement('div');
+  overlay.className = 'exec-overlay';
+  overlay.style.position = 'absolute';
+  overlay.style.inset = '0';
+  overlay.style.pointerEvents = 'none';
+  el.appendChild(overlay);
+
+  function priceY(px) { return candleSeries.priceToCoordinate(px); }
+  function timeX(t) { return lwcChart.timeScale().timeToCoordinate(t); }
+
+  // Place buys near candle low, sells near candle high (with padding)
+  function yForExec(ex) {
+    const c = candleByTime.get(Number(ex._bar));
+    if (!c) return null;
+    const isBuy = /^(buy|bot|long)$/i.test(ex.side || '');
+    const base = isBuy ? c.low : c.high;
+    const pad = (c.high - c.low) * 0.06;
+    return priceY(isBuy ? (base - pad) : (base + pad));
+  }
+
+  function renderTriangles() {
+    overlay.innerHTML = '';
+    for (const ex of sorted) {
+      const x = timeX(Number(ex._bar));
+      const y = yForExec(ex);
+      if (x == null || y == null) continue;
+      const isBuy = /^(buy|bot|long)$/i.test(ex.side || '');
+      const tri = document.createElement('div');
+      tri.className = 'exec-tri ' + (isBuy ? 'buy' : 'sell');
+      tri.style.left = Math.round(x) + 'px';
+      tri.style.top  = Math.round(y) + 'px';
+      overlay.appendChild(tri);
+    }
+  }
+  renderTriangles();
+
+  new ResizeObserver(renderTriangles).observe(wrap);
+  lwcChart.timeScale().subscribeVisibleTimeRangeChange(renderTriangles);
+  lwcChart.timeScale().subscribeSizeChange(renderTriangles);
+})();
+</script>
+
+<style>
+.badge { display:inline-block; }
+.kpi-label { opacity:.7; font-size:12px; margin-bottom:2px; }
+.kpi-value { font-weight:600; }
+
+.table-wide tbody tr:nth-child(odd){ background: color-mix(in oklab, var(--card), transparent 70%); }
+.table-wide th, .table-wide td { vertical-align:middle; }
+
+/* Triangle overlay (DOM) */
+.exec-overlay { position:absolute; inset:0; pointer-events:none; }
+.exec-tri { position:absolute; width:0; height:0; transform: translate(-50%, -50%); }
+/* BUY: right-pointing green triangle */
+.exec-tri.buy {
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-left: 11px solid #26a69a;
+}
+/* SELL: left-pointing red triangle */
+.exec-tri.sell {
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-right: 11px solid #ef5350;
+}
+</style>
