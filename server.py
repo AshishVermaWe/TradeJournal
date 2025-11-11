@@ -1225,13 +1225,7 @@ def app(environ, start_response):
 _loaded = store_load()
 if _loaded:
     update_last(_loaded)
-
-if __name__ == "__main__":
-    port = 8000
-    print(f"Serving on http://127.0.0.1:{port}")
-    with make_server("127.0.0.1", port, app) as httpd:
-        httpd.serve_forever()
-
+    
 # --- at bottom of server.py ---
 if __name__ == "__main__":
     import os
