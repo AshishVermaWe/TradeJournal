@@ -1225,7 +1225,7 @@ def app(environ, start_response):
 _loaded = store_load()
 if _loaded:
     update_last(_loaded)
-    
+
 # --- at bottom of server.py ---
 if __name__ == "__main__":
     import os
