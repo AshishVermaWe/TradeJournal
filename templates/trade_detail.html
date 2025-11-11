@@ -146,7 +146,7 @@
   let EXECS = [];
   try { EXECS = JSON.parse((holder.textContent || '').trim() || '[]'); } catch (_) {}
 
-  // Normalize exec times and map to nearest candle time (1m bars)
+  // Normalize exec times and snap to 1m bar
   const toUnix = t => Math.floor(new Date(t).getTime() / 1000);
   const snapMinute = (s) => Math.floor(Number(s) / 60) * 60;
 
@@ -155,21 +155,18 @@
     _epoch: (typeof ex.ts === 'number' && isFinite(ex.ts)) ? ex.ts : toUnix(ex.time)
   })).sort((a, b) => a._epoch - b._epoch);
 
-  // After candles load, we’ll compute _bar for each exec
+  // After candles load, compute _bar for each exec
   let candleTimes = [];
   function bindExecsToBars(candles) {
     candleTimes = candles.map(c => Number(c.time));
-    // Fast nearest search (linear is fine for day of 1m bars)
     function nearestBarTime(t) {
       const snapped = snapMinute(t);
-      // exact hit quick-path
       if (candleTimes.indexOf(snapped) !== -1) return snapped;
-      // otherwise nearest by absolute diff
       let best = candleTimes[0], bestDiff = Math.abs(snapped - candleTimes[0]);
       for (let i = 1; i < candleTimes.length; i++) {
         const d = Math.abs(snapped - candleTimes[i]);
         if (d < bestDiff) { best = candleTimes[i]; bestDiff = d; }
-        else if (candleTimes[i] > snapped && d > bestDiff) break; // small early exit
+        else if (candleTimes[i] > snapped && d > bestDiff) break;
       }
       return best;
     }
@@ -206,11 +203,11 @@
 
   if (!candles.length) { empty.style.display = 'flex'; return; }
 
-  // ----- Build chart (dark-mode readable labels) -----
+  // ----- Build chart -----
   const size = () => ({ width: wrap.clientWidth || 800, height: wrap.clientHeight || 520 });
 
   const isLight = document.documentElement.classList.contains('light') || document.body.classList.contains('light');
-  const textColor = isLight ? '#334155' : '#cbd5e1'; // dark mode: light text
+  const textColor = isLight ? '#334155' : '#cbd5e1';
 
   const lwcChart = LWC.createChart(el, {
     ...size(),
@@ -219,6 +216,15 @@
     timeScale: { borderColor: 'rgba(255,255,255,.10)', timeVisible: true, secondsVisible: false },
     grid: { vertLines: { color: 'rgba(255,255,255,.06)' }, horzLines: { color: 'rgba(255,255,255,.06)' } },
     crosshair: { mode: LWC.CrosshairMode.Normal },
+  });
+
+  // ----- Show New York time on x-axis -----
+  const TZ_NY = 'America/New_York';
+  lwcChart.timeScale().applyOptions({
+    tickMarkFormatter: (time) => {
+      const d = new Date(Number(time) * 1000);
+      return new Intl.DateTimeFormat('en-US', { timeZone: TZ_NY, hour: '2-digit', minute: '2-digit' }).format(d);
+    }
   });
 
   // Candles
@@ -231,42 +237,82 @@
   });
   candleSeries.setData(candles.map(c => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close })));
 
-  // Volume – slim bottom band (~8%)
-  const volSeries = lwcChart.addHistogramSeries({
-    priceScaleId: '',
-    priceFormat: { type: 'volume' },
-    overlay: true,
-    scaleMargins: { top: 0.92, bottom: 0.00 }
+  // ---------------- Premarket levels (04:00–09:30 ET) ----------------
+  function nyParts(ts){
+    const d = new Date(Number(ts) * 1000);
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: TZ_NY, year:'numeric', month:'2-digit', day:'2-digit',
+      hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false
+    });
+    const p = Object.fromEntries(fmt.formatToParts(d).map(o => [o.type, o.value]));
+    return { ymd: `${p.year}-${p.month}-${p.day}`, hh:+p.hour, mm:+p.minute, ss:+p.second };
+  }
+
+  // Resolve trade date in NY time
+  const tradeYMD_ET = (TRADE_YMD && TRADE_YMD.length === 8)
+    ? `${TRADE_YMD.slice(0,4)}-${TRADE_YMD.slice(4,6)}-${TRADE_YMD.slice(6,8)}`
+    : nyParts(candles[0].time).ymd;
+
+  const dayCandles = candles.filter(c => nyParts(c.time).ymd === tradeYMD_ET);
+
+  // premarket filter: >= 04:00:00 and < 09:30:00 ET
+  const pmCandles = dayCandles.filter(c => {
+    const t = nyParts(c.time);
+    const after400 = (t.hh > 4) || (t.hh === 4);                     // >= 04:00
+    const before930 = (t.hh < 9) || (t.hh === 9 && t.mm < 30);       // < 09:30
+    return after400 && before930;
   });
+
+  if (pmCandles.length) {
+    const pmHigh = Math.max(...pmCandles.map(c => Number(c.high)));
+    const pmLow  = Math.min(...pmCandles.map(c => Number(c.low)));
+
+    const dotted = LWC.LineStyle.Dotted;
+    const blue   = '#60a5fa'; // Tailwind-ish sky-400
+
+    candleSeries.createPriceLine({
+      price: pmHigh,
+      color: blue,
+      lineWidth: 2,
+      lineStyle: dotted,
+      axisLabelVisible: true,
+      title: 'PM High'
+    });
+
+    candleSeries.createPriceLine({
+      price: pmLow,
+      color: blue,
+      lineWidth: 2,
+      lineStyle: dotted,
+      axisLabelVisible: true,
+      title: 'PM Low'
+    });
+  }
+
+  // ---------------- Volume (confined bottom band) ----------------
+  const volSeries = lwcChart.addHistogramSeries({
+    priceScaleId: 'volume',
+    priceFormat: { type: 'volume' },
+    overlay: true
+  });
+  volSeries.priceScale().applyOptions({
+    visible: false,
+    scaleMargins: { top: 0.96, bottom: 0.00 }
+  });
+
+  const vols = candles.map(c => Number(c.volume) || 0).sort((a,b) => a - b);
+  const cap = vols[Math.floor((vols.length - 1) * 0.98)] || 1;
+
   volSeries.setData(candles.map(c => ({
     time: c.time,
-    value: c.volume,
+    value: Math.min(Number(c.volume) || 0, cap),
     color: (c.close >= c.open) ? '#26a69a' : '#ef5350'
   })));
-
-  // Label markers (Entry / Partial / Exit) with softer colors for partials
-  const lastIdx = Math.max(sorted.length - 1, 0);
-  const labelMarkers = sorted.map((ex, i) => {
-    const isBuy  = /^(buy|bot|long)$/i.test(ex.side || '');
-    const labelKind = (i === 0) ? 'Entry' : (i === lastIdx ? 'Exit' : 'Partial');
-    const qty  = ex.qty != null ? String(ex.qty) : '';
-    const px   = Number(ex.price);
-    const color = (labelKind === 'Partial') ? '#94a3b8' : (isBuy ? '#26a69a' : '#ef5350');
-    const shape = (labelKind === 'Partial') ? 'circle' : (isBuy ? 'arrowUp' : 'arrowDown');
-    const position = (labelKind === 'Partial') ? 'inBar' : (isBuy ? 'belowBar' : 'aboveBar');
-    return {
-      time: Number(ex._bar),
-      position, shape, color,
-      text: `${labelKind}: ${isBuy ? 'Buy' : 'Sell'}${qty ? ' ' + qty : ''} @ ${isFinite(px) ? px.toFixed(2) : ''}`
-    };
+  volSeries.applyOptions({
+    autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: cap } })
   });
-  candleSeries.setMarkers(labelMarkers);
 
-  lwcChart.timeScale().fitContent();
-
-  // ---------- Triangle overlay (DOM) ----------
-  const candleByTime = new Map(candles.map(c => [c.time, c]));
-
+  // ---------------- Accurate execution overlay (no text) ----------------
   const overlay = document.createElement('div');
   overlay.className = 'exec-overlay';
   overlay.style.position = 'absolute';
@@ -274,38 +320,48 @@
   overlay.style.pointerEvents = 'none';
   el.appendChild(overlay);
 
-  function priceY(px) { return candleSeries.priceToCoordinate(px); }
-  function timeX(t) { return lwcChart.timeScale().timeToCoordinate(t); }
+  const execs = sorted.map((ex, i) => {
+    const isBuy  = /^(buy|bot|long)$/i.test(ex.side || '');
+    const isEntry = i === 0;
+    const isExit  = i === sorted.length - 1;
+    const isPartial = !isEntry && !isExit;
+    return {
+      time: Number(ex._bar),
+      price: Number(ex.price),
+      isBuy, isEntry, isExit, isPartial
+    };
+  });
 
-  // Place buys near candle low, sells near candle high (with padding)
-  function yForExec(ex) {
-    const c = candleByTime.get(Number(ex._bar));
-    if (!c) return null;
-    const isBuy = /^(buy|bot|long)$/i.test(ex.side || '');
-    const base = isBuy ? c.low : c.high;
-    const pad = (c.high - c.low) * 0.06;
-    return priceY(isBuy ? (base - pad) : (base + pad));
-  }
+  function xAt(time)  { return lwcChart.timeScale().timeToCoordinate(time); }
+  function yAt(price) { return candleSeries.priceToCoordinate(price); }
 
-  function renderTriangles() {
+  function renderExecs() {
     overlay.innerHTML = '';
-    for (const ex of sorted) {
-      const x = timeX(Number(ex._bar));
-      const y = yForExec(ex);
+    const rect = el.getBoundingClientRect();
+    const pad = 2;
+
+    for (const ex of execs) {
+      const x = xAt(ex.time);
+      const y = yAt(ex.price);
       if (x == null || y == null) continue;
-      const isBuy = /^(buy|bot|long)$/i.test(ex.side || '');
+
+      const left = Math.max(pad, Math.min(rect.width  - pad, Math.round(x)));
+      const top  = Math.max(pad, Math.min(rect.height - pad, Math.round(y)));
+
       const tri = document.createElement('div');
-      tri.className = 'exec-tri ' + (isBuy ? 'buy' : 'sell');
-      tri.style.left = Math.round(x) + 'px';
-      tri.style.top  = Math.round(y) + 'px';
+      tri.className = 'exec-tri ' + (ex.isBuy ? 'buy' : 'sell') + (ex.isPartial ? ' partial' : ' full');
+      tri.style.left = left + 'px';
+      tri.style.top  = top  + 'px';
       overlay.appendChild(tri);
     }
   }
-  renderTriangles();
 
-  new ResizeObserver(renderTriangles).observe(wrap);
-  lwcChart.timeScale().subscribeVisibleTimeRangeChange(renderTriangles);
-  lwcChart.timeScale().subscribeSizeChange(renderTriangles);
+  renderExecs();
+  new ResizeObserver(renderExecs).observe(wrap);
+  lwcChart.timeScale().subscribeVisibleTimeRangeChange(renderExecs);
+  candleSeries.priceScale().subscribeVisiblePriceRangeChange(renderExecs);
+
+  lwcChart.timeScale().fitContent();
 })();
 </script>
 
@@ -317,19 +373,29 @@
 .table-wide tbody tr:nth-child(odd){ background: color-mix(in oklab, var(--card), transparent 70%); }
 .table-wide th, .table-wide td { vertical-align:middle; }
 
-/* Triangle overlay (DOM) */
-.exec-overlay { position:absolute; inset:0; pointer-events:none; }
-.exec-tri { position:absolute; width:0; height:0; transform: translate(-50%, -50%); }
-/* BUY: right-pointing green triangle */
-.exec-tri.buy {
+/* ---------- Execution overlay ---------- */
+.exec-overlay{position:absolute;inset:0;pointer-events:none}
+.exec-tri{position:absolute;width:0;height:0;transform:translate(-50%,-50%)}
+
+/* Entry/Exit = larger; Partial = smaller/softer */
+.exec-tri.full.buy {
   border-top: 7px solid transparent;
   border-bottom: 7px solid transparent;
-  border-left: 11px solid #26a69a;
+  border-left: 12px solid #26a69a;   /* green */
 }
-/* SELL: left-pointing red triangle */
-.exec-tri.sell {
+.exec-tri.full.sell {
   border-top: 7px solid transparent;
   border-bottom: 7px solid transparent;
-  border-right: 11px solid #ef5350;
+  border-right: 12px solid #ef5350;  /* red */
+}
+.exec-tri.partial.buy {
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 8px solid #9dddc8;    /* softer green */
+}
+.exec-tri.partial.sell {
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-right: 8px solid #f3a3a3;   /* softer red */
 }
 </style>

@@ -439,3 +439,87 @@ html[data-label="brand"], body[data-label="brand"]{
 .sidebar nav a.active{ background: color-mix(in srgb, var(--accent) 18%, var(--border)); color: var(--fg); }
 .btn{ background: var(--accent); }
 .kpi-value, .tile-value{ color: var(--accent) !important; }
+/* --------------------------------------------------
+   Brand Logo (TradeJournal)
+-------------------------------------------------- */
+.brand-logo {
+  height: 14px;               /* increase this from 14px */
+  width:  14px;
+  border-radius: 6px;
+  object-fit: contain;
+  margin-right: 6px;
+  transition: transform .2s ease;
+}
+
+.brand-logo:hover {
+  transform: scale(1.1);
+}
+/* --- Sidebar logo sizing --- */
+.sidebar .logo{
+  display:flex;align-items:center;gap:10px;
+  min-height:48px; /* gives it breathing room */
+}
+
+.sidebar .logo img.brandmark{
+  /* bump the size here */
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+@media (max-width: 1200px){
+  .sidebar .logo img.brandmark{ width:36px; height:36px; }
+}
+
+/* collapsed sidebar: keep it readable */
+:where(html.sidebar-collapsed, body.sidebar-collapsed) .sidebar .logo{
+  justify-content:center;
+}
+:where(html.sidebar-collapsed, body.sidebar-collapsed) .sidebar .logo img.brandmark{
+  width:28px;height:28px;border-radius:8px;
+}
+/* ---------- Top-right brand chip ---------- */
+.top-brand{
+  position: fixed;
+  top: 10px;
+  right: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  font-weight: 800;
+  letter-spacing: .2px;
+  z-index: 1100;               /* above page/header widgets */
+  box-shadow: 0 2px 6px rgba(0,0,0,.08);
+}
+
+.top-brand:hover { filter: brightness(1.05); }
+
+.top-brand__img{
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.top-brand__text{ font-size: 14px; line-height: 1; }
+.top-brand__text .accent{ color: var(--accent); }
+
+/* keep clear of Import button on small screens */
+@media (max-width: 900px){
+  .top-brand{ right: 10px; top: 8px; padding: 5px 8px; }
+  .top-brand__img{ width: 20px; height: 20px; }
+  .top-brand__text{ font-size: 13px; }
+}
+
+/* when sidebar is collapsed, nothing to change since it's fixed,
+   but if you want it tighter: */
+:where(html.sidebar-collapsed, body.sidebar-collapsed) .top-brand{
+  right: 12px;
+}
