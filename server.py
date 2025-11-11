@@ -11,6 +11,22 @@ import urllib.request, urllib.parse
 from zoneinfo import ZoneInfo
 from typing import Iterable
 
+# ---------------------------- persistent storage paths ----------------------------
+# Use a Render disk mounted at /var/data (or set DATA_DIR via env var)
+DATA_DIR = os.environ.get("DATA_DIR", "/var/data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+STORE_PATH = os.path.join(DATA_DIR, "trades.json")
+NOTES_PATH = os.path.join(DATA_DIR, "journal_notes.json")
+
+# Create files if missing
+if not os.path.exists(STORE_PATH):
+    with open(STORE_PATH, "w", encoding="utf-8") as f:
+        f.write("[]")
+if not os.path.exists(NOTES_PATH):
+    with open(NOTES_PATH, "w", encoding="utf-8") as f:
+        f.write("{}")
+
 from parser import (
     parse_upload, daily_equity, symbol_pl, side_counts,
     pack_json, build_trades, daily_metrics_last_n
@@ -19,10 +35,6 @@ from parser import (
 ROOT = os.path.dirname(os.path.abspath(__file__))
 TPL  = lambda name: os.path.join(ROOT, "templates", name)
 STATIC_DIR = os.path.join(ROOT, "static")
-DATA_DIR   = os.path.join(ROOT, "data")
-STORE_PATH = os.path.join(DATA_DIR, "trades.json")
-NOTES_PATH = os.path.join(DATA_DIR, "journal_notes.json")
-os.makedirs(DATA_DIR, exist_ok=True)
 
 # ---------------------------- in-memory cache ----------------------------
 LAST = {
@@ -200,7 +212,6 @@ def _daily_map_from_fills(fills: Iterable[dict]) -> dict[date, dict]:
         pl = ser["cum"][-1] if ser["cum"] else 0.0
         m[d] = {"pl": float(pl), "count": len(arr)}
     return m
-
 
 def _month_name(y, m):
     import calendar as _cal
@@ -487,12 +498,7 @@ def _row_for_day_table(t: dict) -> dict:
         "tags": t.get("tags") or [],
     }
 
-from zoneinfo import ZoneInfo  # already imported above
-
-DEFAULT_TZ = "America/New_York"  # keep this in one place
-
 # --- Realized P&L helpers for a day (market-local) ---
-
 def _per_exec_realized_deltas(fills_sorted: list[dict]) -> list[tuple[datetime, float]]:
     """
     Given executions for a single (Account, Symbol) in chronological order,
@@ -545,7 +551,6 @@ def _per_exec_realized_deltas(fills_sorted: list[dict]) -> list[tuple[datetime, 
         deltas.append((e["_dt_local"], realized))
 
     return deltas
-
 
 def _day_realized_series(the_day_iso: str) -> dict:
     """
@@ -612,54 +617,8 @@ def _day_realized_series(the_day_iso: str) -> dict:
     return {"ts": ts, "cum": cum}
 
 def _day_pl_series(the_day_iso: str) -> dict:
+    # Keep journal's intraday chart on realized deltas
     return _day_realized_series(the_day_iso)
-
-    try:
-        the_day = date.fromisoformat(the_day_iso)
-    except Exception:
-        return {"ts": [], "cum": []}
-
-    market_tz = ZoneInfo(DEFAULT_TZ)
-
-    # Pick fills whose LOCAL (market_tz) calendar date == the_day
-    fills = []
-    for f in LAST.get("fills", []):
-        dt = f["datetime"]
-        # Ensure it's timezone-aware in market tz
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=market_tz)
-        else:
-            dt = dt.astimezone(market_tz)
-        if dt.date() == the_day:
-            g = dict(f)
-            g["_dt_local"] = dt
-            fills.append(g)
-
-    fills.sort(key=lambda x: x["_dt_local"])
-
-    ts, cum = [], []
-    running = 0.0
-
-    # Optional: start with a baseline 0 at the first exec time (looks nicer)
-    if fills:
-        first_ts_utc = int(fills[0]["_dt_local"].astimezone(timezone.utc).timestamp())
-        ts.append(first_ts_utc)
-        cum.append(0.0)
-
-    for f in fills:
-        running += float(f.get("NetPL", 0.0))
-        ts_utc = int(f["_dt_local"].astimezone(timezone.utc).timestamp())
-        ts.append(ts_utc)
-        cum.append(round(running, 2))
-
-    # Guarantee two points for Plotly even if no fills
-    if not ts:
-        # Place a single point at 10:00 ET just to render a flat 0 line
-        anchor = datetime(the_day.year, the_day.month, the_day.day, 10, 0, tzinfo=market_tz)
-        ts = [int(anchor.astimezone(timezone.utc).timestamp())]
-        cum = [0.0]
-
-    return {"ts": ts, "cum": cum}
 
 # ---------------------------- WSGI app ----------------------------
 def app(environ, start_response):
@@ -1221,14 +1180,12 @@ def app(environ, start_response):
     start_response("404 Not Found", [("Content-Type", "text/plain")])
     return [b"Not found"]
 
-# Initial load
+# ---------------------------- initial load ----------------------------
 _loaded = store_load()
-if _loaded:
-    update_last(_loaded)
-    
-# --- at bottom of server.py ---
+update_last(_loaded if _loaded else [])
+
+# ---------------------------- entrypoint ----------------------------
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", "8000"))
     host = "0.0.0.0"  # important for Docker/Render
     with make_server(host, port, app) as httpd:
