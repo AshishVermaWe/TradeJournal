@@ -11,6 +11,22 @@ import urllib.request, urllib.parse
 from zoneinfo import ZoneInfo
 from typing import Iterable
 
+# ---------------------------- persistent storage paths ----------------------------
+# Use a Render disk mounted at /var/data (or set DATA_DIR via env var)
+DATA_DIR = os.environ.get("DATA_DIR", "/var/data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+STORE_PATH = os.path.join(DATA_DIR, "trades.json")
+NOTES_PATH = os.path.join(DATA_DIR, "journal_notes.json")
+
+# Create files if missing
+if not os.path.exists(STORE_PATH):
+    with open(STORE_PATH, "w", encoding="utf-8") as f:
+        f.write("[]")
+if not os.path.exists(NOTES_PATH):
+    with open(NOTES_PATH, "w", encoding="utf-8") as f:
+        f.write("{}")
+
 from parser import (
     parse_upload, daily_equity, symbol_pl, side_counts,
     pack_json, build_trades, daily_metrics_last_n
@@ -19,12 +35,15 @@ from parser import (
 ROOT = os.path.dirname(os.path.abspath(__file__))
 TPL  = lambda name: os.path.join(ROOT, "templates", name)
 STATIC_DIR = os.path.join(ROOT, "static")
+<<<<<<< HEAD
 DATA_DIR   = os.path.join(ROOT, "data")
 STORE_PATH = os.path.join(DATA_DIR, "trades.json")
 NOTES_PATH = os.path.join(DATA_DIR, "journal_notes.json")
 RULES_PATH = os.path.join(DATA_DIR, "rules.json")
 CHECKLIST_PATH = os.path.join(DATA_DIR, "rules_checklist.json")
 os.makedirs(DATA_DIR, exist_ok=True)
+=======
+>>>>>>> 7a1ba79955c653abca65f9247a04ae6d1fa5a11a
 
 DEFAULT_TZ = "America/New_York"  # ET (EST/EDT)
 
@@ -557,7 +576,17 @@ def _per_exec_realized_deltas(fills_sorted: list[dict]) -> list[tuple[datetime, 
 
     return deltas
 
+<<<<<<< HEAD
 def _day_realized_series(the_day_iso: str, fills: Iterable[dict] | None = None) -> dict:
+=======
+def _day_realized_series(the_day_iso: str) -> dict:
+    """
+    Build intraday realized P&L series for YYYY-MM-DD using LAST['fills'].
+    Filters by the *market-local* calendar day, groups by (Account, Symbol),
+    computes per-exec realized deltas, and cumulative-sums them.
+    Returns {"ts":[epoch_utc_seconds...], "cum":[...]}.
+    """
+>>>>>>> 7a1ba79955c653abca65f9247a04ae6d1fa5a11a
     try:
         the_day = date.fromisoformat(the_day_iso)
     except Exception:
@@ -612,6 +641,7 @@ def _day_realized_series(the_day_iso: str, fills: Iterable[dict] | None = None) 
     return {"ts": ts, "cum": cum}
 
 def _day_pl_series(the_day_iso: str) -> dict:
+<<<<<<< HEAD
     return _day_realized_series(the_day_iso, LAST.get("fills", []))
 
 # ---------------------------- Rules storage ----------------------------
@@ -820,6 +850,11 @@ def save_checklist_data(payload: dict) -> None:
         json.dump(payload, fh, ensure_ascii=False, indent=2)
     os.replace(tmp, CHECKLIST_PATH)
 
+=======
+    # Keep journal's intraday chart on realized deltas
+    return _day_realized_series(the_day_iso)
+
+>>>>>>> 7a1ba79955c653abca65f9247a04ae6d1fa5a11a
 # ---------------------------- WSGI app ----------------------------
 def app(environ, start_response):
     path = environ.get("PATH_INFO", "/")
@@ -1507,8 +1542,9 @@ def app(environ, start_response):
     start_response("404 Not Found", [("Content-Type", "text/plain")])
     return [b"Not found"]
 
-# Initial load
+# ---------------------------- initial load ----------------------------
 _loaded = store_load()
+<<<<<<< HEAD
 if _loaded:
     update_last(_loaded)
 
@@ -1516,4 +1552,14 @@ if __name__ == "__main__":
     port = 8000
     print(f"Serving on http://127.0.0.1:{port}")
     with make_server("127.0.0.1", port, app) as httpd:
+=======
+update_last(_loaded if _loaded else [])
+
+# ---------------------------- entrypoint ----------------------------
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", "8000"))
+    host = "0.0.0.0"  # important for Docker/Render
+    with make_server(host, port, app) as httpd:
+        print(f"Serving on http://{host}:{port}")
+>>>>>>> 7a1ba79955c653abca65f9247a04ae6d1fa5a11a
         httpd.serve_forever()
