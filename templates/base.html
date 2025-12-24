@@ -202,7 +202,7 @@
         <button id="sidebarToggle" class="sidebar-toggle" aria-label="Toggle sidebar">◀</button>
 
         <nav>
-          <a href="/dashboard" class="active">
+          <a href="/dashboard">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="7" height="7"></rect>
               <rect x="14" y="3" width="7" height="7"></rect>
@@ -241,6 +241,16 @@
               <line x1="8" y1="4" x2="8" y2="20"></line>
             </svg>
             <span>Journal</span>
+          </a>
+          <a href="/rules">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="3" width="16" height="18" rx="2" ry="2"></rect>
+              <path d="M9 7h6"></path>
+              <path d="M9 11h6"></path>
+              <path d="M9 15h4"></path>
+              <path d="M9 3.5A2.5 2.5 0 0 0 6.5 6"></path>
+            </svg>
+            <span>Rules</span>
           </a>
           <a class="upload" href="/upload">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -320,6 +330,19 @@
             localStorage.setItem('sidebar-collapsed', collapsed);
           });
         }
+
+        // Active nav state
+        var path = window.location.pathname.replace(/\/+$/, '') || '/';
+        document.querySelectorAll('.sidebar nav a').forEach(function (a) {
+          var href = (a.getAttribute('href') || '').replace(/\/+$/, '') || '/';
+          var match = false;
+          if (href === '/') {
+            match = path === '/';
+          } else {
+            match = (path === href) || path.startsWith(href + '/');
+          }
+          a.classList.toggle('active', match);
+        });
 
         // Plotly helper cleanup (defensive)
         function removePlotlyHelperElements() {

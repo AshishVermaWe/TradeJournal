@@ -152,6 +152,8 @@
 
   let sorted = (EXECS || []).map(ex => ({
     ...ex,
+    realized: Number(ex.realized || 0),
+    cum: Number(ex.cum || 0),
     _epoch: (typeof ex.ts === 'number' && isFinite(ex.ts)) ? ex.ts : toUnix(ex.time)
   })).sort((a, b) => a._epoch - b._epoch);
 
@@ -173,7 +175,7 @@
     sorted = sorted.map(ex => ({ ...ex, _bar: nearestBarTime(ex._epoch) }));
   }
 
-  // ----- Load Lightweight-Charts -----
+  // ----- Load Lightweight-Charts (non-blocking for P&L fallback) -----
   try { delete window.LightweightCharts; } catch (_) { window.LightweightCharts = undefined; }
   function loadLWC(src) {
     return new Promise((resolve, reject) => {
@@ -183,11 +185,13 @@
       document.head.appendChild(s);
     });
   }
-  await loadLWC('https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js');
-  if (!window.LightweightCharts || typeof LightweightCharts.createChart !== 'function') {
-    empty.style.display = 'flex'; return;
+  try {
+    await loadLWC('https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js');
+  } catch (e) {
+    console.warn('Lightweight Charts failed to load, using fallback for P&L', e);
   }
   const LWC = window.LightweightCharts;
+  const hasLwc = !!(LWC && typeof LWC.createChart === 'function');
 
   // ----- Fetch minute candles for the trade day -----
   const qs = new URLSearchParams({ symbol: SYMBOL });
@@ -201,41 +205,38 @@
     bindExecsToBars(candles);
   } catch (e) {}
 
-  if (!candles.length) { empty.style.display = 'flex'; return; }
-
-  // ----- Build chart -----
-  const size = () => ({ width: wrap.clientWidth || 800, height: wrap.clientHeight || 520 });
-
   const isLight = document.documentElement.classList.contains('light') || document.body.classList.contains('light');
   const textColor = isLight ? '#334155' : '#cbd5e1';
-
-  const lwcChart = LWC.createChart(el, {
-    ...size(),
-    layout: { background: { color: 'transparent' }, textColor: textColor },
-    rightPriceScale: { borderColor: 'rgba(255,255,255,.10)' },
-    timeScale: { borderColor: 'rgba(255,255,255,.10)', timeVisible: true, secondsVisible: false },
-    grid: { vertLines: { color: 'rgba(255,255,255,.06)' }, horzLines: { color: 'rgba(255,255,255,.06)' } },
-    crosshair: { mode: LWC.CrosshairMode.Normal },
-  });
-
-  // ----- Show New York time on x-axis -----
   const TZ_NY = 'America/New_York';
-  lwcChart.timeScale().applyOptions({
-    tickMarkFormatter: (time) => {
-      const d = new Date(Number(time) * 1000);
-      return new Intl.DateTimeFormat('en-US', { timeZone: TZ_NY, hour: '2-digit', minute: '2-digit' }).format(d);
-    }
-  });
 
-  // Candles
-  const candleSeries = lwcChart.addCandlestickSeries({
-    upColor: '#26a69a',
-    downColor: '#ef5350',
-    borderVisible: false,
-    wickUpColor: '#26a69a',
-    wickDownColor: '#ef5350',
-  });
-  candleSeries.setData(candles.map(c => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close })));
+  if (hasLwc && candles.length) {
+    // ----- Build price chart -----
+    const size = () => ({ width: wrap.clientWidth || 800, height: wrap.clientHeight || 520 });
+
+    const lwcChart = LWC.createChart(el, {
+      ...size(),
+      layout: { background: { color: 'transparent' }, textColor: textColor },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,.10)' },
+      timeScale: { borderColor: 'rgba(255,255,255,.10)', timeVisible: true, secondsVisible: false },
+      grid: { vertLines: { color: 'rgba(255,255,255,.06)' }, horzLines: { color: 'rgba(255,255,255,.06)' } },
+      crosshair: { mode: LWC.CrosshairMode.Normal },
+    });
+
+    lwcChart.timeScale().applyOptions({
+      tickMarkFormatter: (time) => {
+        const d = new Date(Number(time) * 1000);
+        return new Intl.DateTimeFormat('en-US', { timeZone: TZ_NY, hour: '2-digit', minute: '2-digit' }).format(d);
+      }
+    });
+
+    const candleSeries = lwcChart.addCandlestickSeries({
+      upColor: '#26a69a',
+      downColor: '#ef5350',
+      borderVisible: false,
+      wickUpColor: '#26a69a',
+      wickDownColor: '#ef5350',
+    });
+    candleSeries.setData(candles.map(c => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close })));
 
   // ---------------- Premarket levels (04:00–09:30 ET) ----------------
   function nyParts(ts){
@@ -289,79 +290,82 @@
     });
   }
 
-  // ---------------- Volume (confined bottom band) ----------------
-  const volSeries = lwcChart.addHistogramSeries({
-    priceScaleId: 'volume',
-    priceFormat: { type: 'volume' },
-    overlay: true
-  });
-  volSeries.priceScale().applyOptions({
-    visible: false,
-    scaleMargins: { top: 0.96, bottom: 0.00 }
-  });
+    // ---------------- Volume (confined bottom band) ----------------
+    const volSeries = lwcChart.addHistogramSeries({
+      priceScaleId: 'volume',
+      priceFormat: { type: 'volume' },
+      overlay: true
+    });
+    volSeries.priceScale().applyOptions({
+      visible: false,
+      scaleMargins: { top: 0.96, bottom: 0.00 }
+    });
 
-  const vols = candles.map(c => Number(c.volume) || 0).sort((a,b) => a - b);
-  const cap = vols[Math.floor((vols.length - 1) * 0.98)] || 1;
+    const vols = candles.map(c => Number(c.volume) || 0).sort((a,b) => a - b);
+    const cap = vols[Math.floor((vols.length - 1) * 0.98)] || 1;
 
-  volSeries.setData(candles.map(c => ({
-    time: c.time,
-    value: Math.min(Number(c.volume) || 0, cap),
-    color: (c.close >= c.open) ? '#26a69a' : '#ef5350'
-  })));
-  volSeries.applyOptions({
-    autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: cap } })
-  });
+    volSeries.setData(candles.map(c => ({
+      time: c.time,
+      value: Math.min(Number(c.volume) || 0, cap),
+      color: (c.close >= c.open) ? '#26a69a' : '#ef5350'
+    })));
+    volSeries.applyOptions({
+      autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: cap } })
+    });
 
-  // ---------------- Accurate execution overlay (no text) ----------------
-  const overlay = document.createElement('div');
-  overlay.className = 'exec-overlay';
-  overlay.style.position = 'absolute';
-  overlay.style.inset = '0';
-  overlay.style.pointerEvents = 'none';
-  el.appendChild(overlay);
+    // ---------------- Accurate execution overlay (no text) ----------------
+    const overlay = document.createElement('div');
+    overlay.className = 'exec-overlay';
+    overlay.style.position = 'absolute';
+    overlay.style.inset = '0';
+    overlay.style.pointerEvents = 'none';
+    el.appendChild(overlay);
 
-  const execs = sorted.map((ex, i) => {
-    const isBuy  = /^(buy|bot|long)$/i.test(ex.side || '');
-    const isEntry = i === 0;
-    const isExit  = i === sorted.length - 1;
-    const isPartial = !isEntry && !isExit;
-    return {
-      time: Number(ex._bar),
-      price: Number(ex.price),
-      isBuy, isEntry, isExit, isPartial
-    };
-  });
+    const execs = sorted.map((ex, i) => {
+      const isBuy  = /^(buy|bot|long)$/i.test(ex.side || '');
+      const isEntry = i === 0;
+      const isExit  = i === sorted.length - 1;
+      const isPartial = !isEntry && !isExit;
+      return {
+        time: Number(ex._bar),
+        price: Number(ex.price),
+        isBuy, isEntry, isExit, isPartial
+      };
+    });
 
-  function xAt(time)  { return lwcChart.timeScale().timeToCoordinate(time); }
-  function yAt(price) { return candleSeries.priceToCoordinate(price); }
+    function xAt(time)  { return lwcChart.timeScale().timeToCoordinate(time); }
+    function yAt(price) { return candleSeries.priceToCoordinate(price); }
 
-  function renderExecs() {
-    overlay.innerHTML = '';
-    const rect = el.getBoundingClientRect();
-    const pad = 2;
+    function renderExecs() {
+      overlay.innerHTML = '';
+      const rect = el.getBoundingClientRect();
+      const pad = 2;
 
-    for (const ex of execs) {
-      const x = xAt(ex.time);
-      const y = yAt(ex.price);
-      if (x == null || y == null) continue;
+      for (const ex of execs) {
+        const x = xAt(ex.time);
+        const y = yAt(ex.price);
+        if (x == null || y == null) continue;
 
-      const left = Math.max(pad, Math.min(rect.width  - pad, Math.round(x)));
-      const top  = Math.max(pad, Math.min(rect.height - pad, Math.round(y)));
+        const left = Math.max(pad, Math.min(rect.width  - pad, Math.round(x)));
+        const top  = Math.max(pad, Math.min(rect.height - pad, Math.round(y)));
 
-      const tri = document.createElement('div');
-      tri.className = 'exec-tri ' + (ex.isBuy ? 'buy' : 'sell') + (ex.isPartial ? ' partial' : ' full');
-      tri.style.left = left + 'px';
-      tri.style.top  = top  + 'px';
-      overlay.appendChild(tri);
+        const tri = document.createElement('div');
+        tri.className = 'exec-tri ' + (ex.isBuy ? 'buy' : 'sell') + (ex.isPartial ? ' partial' : ' full');
+        tri.style.left = left + 'px';
+        tri.style.top  = top  + 'px';
+        overlay.appendChild(tri);
+      }
     }
+
+    renderExecs();
+    new ResizeObserver(renderExecs).observe(wrap);
+    lwcChart.timeScale().subscribeVisibleTimeRangeChange(renderExecs);
+    candleSeries.priceScale().subscribeVisiblePriceRangeChange(renderExecs);
+
+    lwcChart.timeScale().fitContent();
+  } else {
+    empty.style.display = 'flex';
   }
-
-  renderExecs();
-  new ResizeObserver(renderExecs).observe(wrap);
-  lwcChart.timeScale().subscribeVisibleTimeRangeChange(renderExecs);
-  candleSeries.priceScale().subscribeVisiblePriceRangeChange(renderExecs);
-
-  lwcChart.timeScale().fitContent();
 })();
 </script>
 

@@ -1,0 +1,744 @@
+{
+  "entries": [
+    {
+      "date": "2025-12-24",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": true
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": true
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": true
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 100.0,
+      "breaches": 0,
+      "notes": "",
+      "quality": "Some trading opportunities",
+      "pnl": 26.49,
+      "score": 100.0,
+      "completed": true
+    },
+    {
+      "date": "2025-12-23",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": true
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": true
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 50.0,
+      "breaches": 1,
+      "notes": "",
+      "quality": "Choppy",
+      "pnl": -25.7,
+      "score": 80.0,
+      "completed": false
+    },
+    {
+      "date": "2025-12-22",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": true
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": true
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": true
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 75.0,
+      "breaches": 0,
+      "notes": "",
+      "quality": "Amazing",
+      "pnl": 61.6,
+      "score": 100.0,
+      "completed": true
+    },
+    {
+      "date": "2025-12-19",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": true
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": true
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": true
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 66.7,
+      "breaches": 0,
+      "notes": "",
+      "quality": "Amazing",
+      "pnl": 148.35,
+      "score": 100.0,
+      "completed": true
+    },
+    {
+      "date": "2025-12-18",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": true
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": true
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": true
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 50.0,
+      "breaches": 0,
+      "notes": "",
+      "quality": "Amazing",
+      "pnl": 99.05,
+      "score": 100.0,
+      "completed": true
+    },
+    {
+      "date": "2025-12-17",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": false
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": false
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 33.3,
+      "breaches": 1,
+      "notes": "",
+      "quality": "Choppy",
+      "pnl": -269.2,
+      "score": 40.0,
+      "completed": false
+    },
+    {
+      "date": "2025-12-16",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": false
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": false
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 10.0,
+      "breaches": 1,
+      "notes": "",
+      "quality": "Choppy",
+      "pnl": -380.4,
+      "score": 40.0,
+      "completed": false
+    },
+    {
+      "date": "2025-12-15",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": true
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": false
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 25.0,
+      "breaches": 0,
+      "notes": "",
+      "quality": "Some trading opportunities",
+      "pnl": -133.75,
+      "score": 60.0,
+      "completed": false
+    },
+    {
+      "date": "2025-12-12",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": true
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": true
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": true
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 60.0,
+      "breaches": 0,
+      "notes": "",
+      "quality": "Amazing",
+      "pnl": 136.14,
+      "score": 100.0,
+      "completed": true
+    },
+    {
+      "date": "2025-12-11",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": false
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": false
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 52.9,
+      "breaches": 1,
+      "notes": "",
+      "quality": "Some trading opportunities",
+      "pnl": 20.85,
+      "score": 40.0,
+      "completed": false
+    },
+    {
+      "date": "2025-12-10",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": false
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": false
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 50.0,
+      "breaches": 1,
+      "notes": "",
+      "quality": "Some trading opportunities",
+      "pnl": -19.85,
+      "score": 40.0,
+      "completed": false
+    },
+    {
+      "date": "2025-12-09",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": false
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": false
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 0.0,
+      "breaches": 1,
+      "notes": "",
+      "quality": "Choppy",
+      "pnl": -93.55,
+      "score": 40.0,
+      "completed": false
+    },
+    {
+      "date": "2025-12-08",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": false
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": false
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 27.3,
+      "breaches": 1,
+      "notes": "",
+      "quality": "Choppy",
+      "pnl": -271.55,
+      "score": 40.0,
+      "completed": false
+    },
+    {
+      "date": "2025-12-05",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": true
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": false
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 33.3,
+      "breaches": 1,
+      "notes": "",
+      "quality": "Some trading opportunities",
+      "pnl": 85.23,
+      "score": 60.0,
+      "completed": false
+    },
+    {
+      "date": "2025-12-04",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": true
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": false
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 0.0,
+      "breaches": 1,
+      "notes": "",
+      "quality": "Some trading opportunities",
+      "pnl": -131.65,
+      "score": 60.0,
+      "completed": false
+    },
+    {
+      "date": "2025-12-03",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": true
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": false
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 25.0,
+      "breaches": 2,
+      "notes": "",
+      "quality": "Choppy",
+      "pnl": -255.65,
+      "score": 60.0,
+      "completed": false
+    },
+    {
+      "date": "2025-12-02",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": true
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": false
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 50.0,
+      "breaches": 0,
+      "notes": "",
+      "quality": "Amazing",
+      "pnl": 70.7,
+      "score": 60.0,
+      "completed": false
+    },
+    {
+      "date": "2025-12-01",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": false
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": true
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 44.4,
+      "breaches": 1,
+      "notes": "",
+      "quality": "Some trading opportunities",
+      "pnl": 11.65,
+      "score": 60.0,
+      "completed": false
+    },
+    {
+      "date": "2025-11-28",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": false
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": true
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 60.0,
+      "breaches": 1,
+      "notes": "",
+      "quality": "Choppy",
+      "pnl": 96.26,
+      "score": 60.0,
+      "completed": false
+    },
+    {
+      "date": "2025-11-26",
+      "checks": [
+        {
+          "id": "plan_review",
+          "label": "Reviewed premarket plan and levels",
+          "checked": true
+        },
+        {
+          "id": "risk",
+          "label": "Respected position size and max daily loss",
+          "checked": false
+        },
+        {
+          "id": "setups_only",
+          "label": "Traded only A+ setups (no impulse trades)",
+          "checked": false
+        },
+        {
+          "id": "stops",
+          "label": "Executed stops without hesitation",
+          "checked": true
+        },
+        {
+          "id": "journal",
+          "label": "Captured notes/screenshots after trades",
+          "checked": true
+        }
+      ],
+      "win_pct": 25.0,
+      "breaches": 1,
+      "notes": "",
+      "quality": "Choppy",
+      "pnl": -194.4,
+      "score": 60.0,
+      "completed": false
+    }
+  ]
+}

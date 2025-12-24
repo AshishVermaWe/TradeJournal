@@ -132,6 +132,16 @@
     border-radius: 999px;
   }
 
+  .side-pill {
+    display: inline-block;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  .side-pill.long { color: var(--pos); border-color: var(--pos); }
+  .side-pill.short { color: var(--neg); border-color: var(--neg); }
+
   .kpis {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -193,10 +203,21 @@
   let page = 1;
   const perPage = 50;
 
+  const esc = (s="") => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&#39;");
+
   function moneyNum(x){
     const n = Number(x||0);
     const cls = n >= 0 ? 'pos' : 'neg';
     return `<span class="${cls}">$${n.toFixed(2)}</span>`;
+  }
+
+  function formatSide(side){
+    const raw = String(side || "").trim();
+    if (!raw) return { text: "-", cls: "" };
+    const s = raw.toLowerCase();
+    if (s.startsWith("b") || s.startsWith("l")) return { text: "Long", cls: "long" };
+    if (s.startsWith("s")) return { text: "Short", cls: "short" };
+    return { text: raw, cls: "" };
   }
 
   function prettyLocalDate(iso) {
@@ -224,15 +245,18 @@
   function tradeTableRows(day){
     return (day.trades||[]).map(r=>{
       const cls = (Number(r.pl||0) >= 0) ? 'pos' : 'neg';
-      const tags = Array.isArray(r.tags) ? r.tags.join(", ") : (r.tags||"");
+      const tags = Array.isArray(r.tags) ? r.tags.map(esc).join(", ") : esc(r.tags||"");
+      const sym = esc(r.symbol||'');
+      const symbolHtml = r.id ? `<a class="link" href="/trade?id=${encodeURIComponent(r.id)}">${sym}</a>` : sym;
+      const { text: sideText, cls: sideCls } = formatSide(r.side || r.Side);
       return `<tr>
-        <td>${r.time||''}</td>
-        <td>${r.id ? `<a class="link" href="/trade?id=${r.id}">${r.symbol||''}</a>` : (r.symbol||'')}</td>
+        <td>${esc(r.time||'')}</td>
+        <td>${symbolHtml}</td>
         <td class="num">${r.volume||0}</td>
         <td class="num">${r.execs||0}</td>
         <td class="num"><span class="${cls}">$${Number(r.pl||0).toFixed(2)}</span></td>
-        <td class="num muted">—</td>
-        <td>${r.notes||''}</td>
+        <td><span class="side-pill ${sideCls}">${esc(sideText)}</span></td>
+        <td>${esc(r.notes||'')}</td>
         <td>${tags}</td>
       </tr>`;
     }).join('');
@@ -270,7 +294,7 @@
               <table class="table">
                 <thead>
                   <tr>
-                    <th>Time</th><th>Symbol</th><th>Volume</th><th>Execs</th><th>P&amp;L</th><th>Shared</th><th>Notes</th><th>Tags</th>
+                    <th>Time</th><th>Symbol</th><th>Volume</th><th>Execs</th><th>P&amp;L</th><th>Side</th><th>Notes</th><th>Tags</th>
                   </tr>
                 </thead>
                 <tbody>${tradeTableRows(day)}</tbody>

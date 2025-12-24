@@ -34,10 +34,43 @@
                padding:4px 8px; border-radius:8px; cursor:pointer; line-height:1; }
     .icon-btn:hover{ filter:brightness(1.2); }
 
+    /* top tab row */
+    .reports-tabs{
+      margin-top:16px;
+      display:flex;
+      gap:8px;
+      border-bottom:1px solid var(--border);
+      flex-wrap:wrap;
+    }
+    .reports-tabs button{
+      background:transparent;
+      border:none;
+      padding:8px 12px;
+      color:var(--muted);
+      cursor:pointer;
+      font-size:13px;
+      border-radius:8px 8px 0 0;
+    }
+    .reports-tabs button.active{
+      color:var(--fg);
+      background:var(--card);
+      border:1px solid var(--border);
+      border-bottom-color:var(--card);
+    }
+
     .grid{
       display:grid; gap:24px;
       grid-template-columns:repeat(2, minmax(420px, 1fr));
       align-items:start;
+      margin-top:16px;
+    }
+    .grid.stats-full,
+    .grid.single-col{
+      grid-template-columns:1fr;
+    }
+    .grid.stats-full .widget,
+    .grid.single-col .widget{
+      grid-column:1 / -1;
     }
     @media (max-width: 980px){ .grid{ grid-template-columns:1fr; } }
 
@@ -55,7 +88,7 @@
     .panel h2{ margin:0; font-size:18px; }
     .plot{ width:100%; min-height:360px; }
 
-    /* KPI tiles (small cards like your screenshot) */
+    /* KPI tiles */
     .panel.kpi{ padding:12px 14px; }
     .kpi .plot{ min-height:0; }
     .kpi .title{ color:var(--muted); font-size:12px; margin-bottom:6px; }
@@ -67,6 +100,82 @@
       display:flex; align-items:center; justify-content:center;
       min-height:320px; color:var(--muted); font-size:14px; text-align:center;
       border:1px dashed var(--border); border-radius:10px; padding:12px;
+    }
+
+    /* Stats table */
+    .stats-wrapper{
+      margin-top:4px;
+      border-radius:8px;
+      border:1px solid var(--border);
+      overflow:hidden;
+      font-size:13px;
+    }
+    .stats-table{
+      width:100%;
+      border-collapse:collapse;
+    }
+    .stats-table tr:nth-child(odd){
+      background:rgba(15,17,24,0.4);
+    }
+    .stats-table tr:nth-child(even){
+      background:rgba(15,17,24,0.2);
+    }
+    html.light .stats-table tr:nth-child(odd){
+      background:#f8fafc;
+    }
+    html.light .stats-table tr:nth-child(even){
+      background:#edf2ff;
+    }
+    .stats-table td{
+      padding:10px 18px;
+      border-top:1px solid var(--border);
+      vertical-align:middle;
+      white-space:nowrap;
+    }
+    .stats-table tr:first-child td{
+      border-top:none;
+    }
+    .stat-label{
+      color:var(--muted);
+      font-size:12px;
+    }
+    .stat-value{
+      text-align:right;
+      font-variant-numeric:tabular-nums;
+      font-weight:500;
+    }
+    .stat-value.positive{ color:var(--pos); }
+    .stat-value.negative{ color:var(--neg); }
+    .stat-lock{
+      font-size:12px;
+      opacity:0.8;
+    }
+
+    /* Win vs Loss days */
+    .winloss-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));
+      gap:16px;
+    }
+    .winloss-card h3{
+      margin:0 0 8px 0;
+      font-size:16px;
+    }
+    .winloss-list{
+      display:grid;
+      gap:10px;
+    }
+    .winloss-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      font-size:13px;
+    }
+    .winloss-label{ color:var(--muted); }
+    .winloss-value{
+      text-align:right;
+      font-variant-numeric:tabular-nums;
     }
 
     /* Modal */
@@ -103,6 +212,17 @@
       </div>
     </div>
 
+    <!-- Tabs -->
+    <nav class="reports-tabs">
+      <button class="active" data-page="stats">Stats</button>
+      <button data-page="days">Days/Times</button>
+      <button data-page="price_volume">Price/Volume</button>
+      <button data-page="instrument">Instrument</button>
+      <button data-page="market_behavior">Market Behavior</button>
+      <button data-page="win_loss">Win vs Loss Days</button>
+      <button data-page="liquidity">Liquidity</button>
+    </nav>
+
     <div id="widgetGrid" class="grid"></div>
   </section>
 
@@ -138,6 +258,7 @@
         <label><input type="checkbox" value="streaks"> Win/Loss Streaks</label>
         <label><input type="checkbox" value="best_worst_day"> Best vs Worst Day</label>
         <label><input type="checkbox" value="profit_factor"> Profit Factor (overall)</label>
+        <label><input type="checkbox" value="win_loss_days"> Win vs Loss Days</label>
       </div>
 
       <div class="picker-group">
@@ -155,6 +276,12 @@
         <h3>Activity</h3>
         <label><input type="checkbox" value="daily_volume"> Daily Volume (30 Days)</label>
         <label><input type="checkbox" value="win_rate"> Win % (30 Days)</label>
+        <label><input type="checkbox" value="trades_by_dow"> Trade Dist. by Day of Week</label>
+        <label><input type="checkbox" value="perf_by_dow"> Performance by Day of Week</label>
+        <label><input type="checkbox" value="trades_by_hour"> Trade Dist. by Hour of Day</label>
+        <label><input type="checkbox" value="perf_by_hour"> Performance by Hour of Day</label>
+        <label><input type="checkbox" value="pnl_by_minute"> P/L by Minute (09:30-11:30)</label>
+        <label><input type="checkbox" value="trades_count_by_minute"> Trades by Minute (09:30-11:30)</label>
       </div>
     </div>
 
@@ -165,7 +292,7 @@
   </div>
 
   <script>
-    /* ---------- server-injected data (must be valid JSON) ---------- */
+    /* ---------- server-injected data ---------- */
     const RAW_SYM_DATA   = ${SYM_DATA};
     const RAW_SIDE_DATA  = ${SIDE_DATA};
     const RAW_L30_LABELS = ${L30_LABELS};
@@ -174,8 +301,9 @@
     const RAW_L30_VOL    = ${L30_VOL};
     const RAW_L30_WIN    = ${L30_WIN};
 
-    /* Optional: richer per-trade dataset; safe default if not injected */
-    const RAW_TRADES_EXT = []; /* replace with: const RAW_TRADES_EXT = ${TRADES_EXT}; when ready */
+    /* TRADES_EXT is optional: we read it from a global if present, else [] */
+    const RAW_TRADES_EXT = ${TRADES_EXT};
+
 
     /* ---------- helpers & state ---------- */
     const toArray = (v, fb=[]) => {
@@ -201,7 +329,29 @@
     const cssVar = (n, fb='') => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || fb;
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-    // ---------- theme (default trace color = green) ----------
+    const fmtMoney = (v) => {
+      if (v == null || isNaN(v)) return '—';
+      const signClass = v < 0 ? 'negative' : 'positive';
+      const abs = Math.abs(v);
+      return { html:`<span class="stat-value ${signClass}">${v < 0 ? '-' : ''}$${abs.toFixed(2)}</span>`, signClass };
+    };
+    const fmtPlain = (v, suffix='') => {
+      if (v == null || isNaN(v)) return '—';
+      return `${v.toFixed(2)}${suffix}`;
+    };
+    const fmtCount = (v) => (v == null || isNaN(v)) ? '—' : String(v);
+    const fmtPercent = (v) => (v == null || isNaN(v)) ? '—' : `${v.toFixed(1)}%`;
+    const fmtDuration = (mins) => {
+      if (!isFinite(mins) || mins <= 0) return '—';
+      if (mins < 1) return 'less than a minute';
+      if (mins < 60) return `${Math.round(mins)} minutes`;
+      const h = Math.floor(mins/60);
+      const m = Math.round(mins%60);
+      if (m === 0) return `${h}h`;
+      return `${h}h ${m}m`;
+    };
+
+    // ---------- theme ----------
     function getTheme() {
       return {
         colors: {
@@ -258,42 +408,133 @@
       labels.forEach((d,i)=>{ const dt=new Date(d+'T00:00:00'); map[dt.getDay()] += (Number(dpl[i])||0); });
       return map;
     }
-    function profitFactorFromDaily(dpl){
-      const wins=dpl.filter(v=>v>0).reduce((a,b)=>a+b,0);
-      const losses=dpl.filter(v=>v<0).reduce((a,b)=>a+b,0);
+    function profitFactor(dplArray){
+      const wins=dplArray.filter(v=>v>0).reduce((a,b)=>a+b,0);
+      const losses=dplArray.filter(v=>v<0).reduce((a,b)=>a+b,0);
       return losses===0?null:wins/Math.abs(losses);
     }
 
-    // ---------- metrics for KPI tiles ----------
+    function tradesAndPerfByDayAndHour(trades){
+      const dayCounts = Array(7).fill(0);
+      const dayPl     = Array(7).fill(0);
+      const hourCounts = Array(24).fill(0);
+      const hourPl     = Array(24).fill(0);
+
+      trades.forEach(t => {
+        const dt = new Date(t.entry_time || t.date);
+        if (isNaN(dt)) return;
+        const d = dt.getDay();
+        const h = dt.getHours();
+        const pnl = Number(t.pnl) || 0;
+        dayCounts[d]++; dayPl[d] += pnl;
+        hourCounts[h]++; hourPl[h] += pnl;
+      });
+
+      return { dayCounts, dayPl, hourCounts, hourPl };
+    }
+
+    function pnlByMinute(trades, start='09:30', end='11:30'){
+      const parseHm = (txt) => {
+        const [h,m] = String(txt||'').split(':').map(Number);
+        if (!isFinite(h) || !isFinite(m)) return null;
+        return h*60 + m;
+      };
+
+      const startMin = parseHm(start);
+      const endMin   = parseHm(end);
+      if (startMin == null || endMin == null || endMin < startMin) return { labels: [], values: [], hits: 0 };
+
+      const labels=[], values=[];
+      for (let minute=startMin; minute<=endMin; minute++){
+        const h=Math.floor(minute/60), m=minute%60;
+        labels.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+        values.push(0);
+      }
+
+      let hits=0;
+      trades.forEach(t => {
+        const dt = new Date(t.entry_time || t.date);
+        if (isNaN(dt)) return;
+        const minuteOfDay = dt.getHours()*60 + dt.getMinutes();
+        if (minuteOfDay < startMin || minuteOfDay > endMin) return;
+        hits++;
+        values[minuteOfDay - startMin] += Number(t.pnl) || 0;
+      });
+
+      return { labels, values, hits };
+    }
+
+    function tradeCountByMinute(trades, start='09:30', end='11:30'){
+      const parseHm = (txt) => {
+        const [h,m] = String(txt||'').split(':').map(Number);
+        if (!isFinite(h) || !isFinite(m)) return null;
+        return h*60 + m;
+      };
+
+      const startMin = parseHm(start);
+      const endMin   = parseHm(end);
+      if (startMin == null || endMin == null || endMin < startMin) return { labels: [], counts: [], hits: 0 };
+
+      const labels=[], counts=[];
+      for (let minute=startMin; minute<=endMin; minute++){
+        const h=Math.floor(minute/60), m=minute%60;
+        labels.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+        counts.push(0);
+      }
+
+      let hits=0;
+      trades.forEach(t => {
+        const dt = new Date(t.entry_time || t.date);
+        if (isNaN(dt)) return;
+        const minuteOfDay = dt.getHours()*60 + dt.getMinutes();
+        if (minuteOfDay < startMin || minuteOfDay > endMin) return;
+        hits++;
+        counts[minuteOfDay - startMin] += 1;
+      });
+
+      return { labels, counts, hits };
+    }
+
+    /* ---------- metrics for KPI tiles ---------- */
     const metrics = {
       fills: () => {
-        // Prefer executions if available, else best effort from trades length or 0
-        if (state.TRADES_EXT.length && state.TRADES_EXT[0]?.fills != null) {
+        if (state.TRADES_EXT.length && state.TRADES_EXT[0] && state.TRADES_EXT[0].fills != null) {
           return state.TRADES_EXT.reduce((a,t)=>a+(Number(t.fills)||0),0);
         }
-        // If each TRADES_EXT row is an execution, count rows:
-        if (state.TRADES_EXT.length && state.TRADES_EXT[0]?.pnl != null && state.TRADES_EXT[0]?.symbol) {
+        if (state.TRADES_EXT.length && state.TRADES_EXT[0] && state.TRADES_EXT[0].pnl != null && state.TRADES_EXT[0].symbol) {
           return state.TRADES_EXT.length;
         }
         return 0;
       },
       winPct: () => {
-        if (state.TRADES_EXT.length && state.TRADES_EXT[0]?.pnl != null) {
+        if (state.TRADES_EXT.length && state.TRADES_EXT[0] && state.TRADES_EXT[0].pnl != null) {
           const n = state.TRADES_EXT.length;
           const w = state.TRADES_EXT.reduce((a,t)=>a+((Number(t.pnl)||0)>0?1:0),0);
           return n? (w/n*100): 0;
         }
-        // fallback: average of daily win% series if provided
         if (state.L30_WIN.length) return state.L30_WIN.reduce((a,b)=>a+b,0)/state.L30_WIN.length;
         return 0;
       },
-      totalPL: () => state.L30_DPL.reduce((a,b)=>a+b,0),
-      best: () => state.L30_DPL.length ? Math.max(...state.L30_DPL) : 0,
-      worst: () => state.L30_DPL.length ? Math.min(...state.L30_DPL) : 0,
-      avgPL: () => state.L30_DPL.length ? state.L30_DPL.reduce((a,b)=>a+b,0)/state.L30_DPL.length : 0
+      totalPL: () => state.TRADES_EXT.length
+          ? state.TRADES_EXT.reduce((a,t)=>a+(Number(t.pnl)||0),0)
+          : state.L30_DPL.reduce((a,b)=>a+b,0),
+      best: () => {
+        if (state.TRADES_EXT.length) return Math.max(...state.TRADES_EXT.map(t=>Number(t.pnl)||0));
+        return state.L30_DPL.length ? Math.max(...state.L30_DPL) : 0;
+      },
+      worst: () => {
+        if (state.TRADES_EXT.length) return Math.min(...state.TRADES_EXT.map(t=>Number(t.pnl)||0));
+        return state.L30_DPL.length ? Math.min(...state.L30_DPL) : 0;
+      },
+      avgPL: () => {
+        const arr = state.TRADES_EXT.length
+          ? state.TRADES_EXT.map(t=>Number(t.pnl)||0)
+          : state.L30_DPL;
+        return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+      }
     };
 
-    // ---------- renderers ----------
+    /* ---------- renderers ---------- */
     const renderers = {
       /* KPI tiles */
       kpi_fills: (el) => {
@@ -309,7 +550,8 @@
       kpi_total_pl: (el) => {
         const v = metrics.totalPL();
         el.closest('.panel').classList.add('kpi');
-        el.innerHTML = `<div class="title">Total P/L</div><div class="value ${v<0?'negative':'positive'}">${v.toFixed(2)}</div>`;
+        const cls = v<0?'negative':'positive';
+        el.innerHTML = `<div class="title">Total P/L</div><div class="value ${cls}">${v.toFixed(2)}</div>`;
       },
       kpi_best: (el) => {
         const v = metrics.best();
@@ -324,14 +566,384 @@
       kpi_avg_pl: (el) => {
         const v = metrics.avgPL();
         el.closest('.panel').classList.add('kpi');
-        el.innerHTML = `<div class="title">Avg P/L</div><div class="value ${v<0?'negative':'positive'}">${v.toFixed(2)}</div>`;
+        const cls = v<0?'negative':'positive';
+        el.innerHTML = `<div class="title">Avg P/L</div><div class="value ${cls}">${v.toFixed(2)}</div>`;
       },
 
-      /* Charts (kept from your build, green everywhere) */
+      /* --- STATS PANEL --- */
+      stats_panel: (el) => {
+        const trades = state.TRADES_EXT;
+        if (!trades.length) {
+          el.innerHTML = '<div class="empty">Stats require per-trade data (TRADES_EXT).</div>';
+          return;
+        }
+
+        const n = trades.length;
+        const pnls = trades.map(t=>Number(t.pnl)||0);
+        const totalPL = pnls.reduce((a,b)=>a+b,0);
+        const avgTradePL = n ? totalPL / n : 0;
+        const best = Math.max(...pnls);
+        const worst = Math.min(...pnls);
+
+        // daily aggregates
+        const byDay = new Map();
+        trades.forEach(t=>{
+          const d = (t.date || (t.entry_time && t.entry_time.slice(0,10))) || '—';
+          const pnl = Number(t.pnl)||0;
+          const vol = Number(t.qty || t.shares || t.volume || 0);
+          const cur = byDay.get(d) || { pnl:0, vol:0 };
+          cur.pnl += pnl; cur.vol += vol;
+          byDay.set(d,cur);
+        });
+        const dailyArr = [...byDay.values()];
+        const avgDailyPL = dailyArr.length
+          ? dailyArr.reduce((a,b)=>a+b.pnl,0)/dailyArr.length
+          : 0;
+        const avgDailyVol = dailyArr.length
+          ? dailyArr.reduce((a,b)=>a+b.vol,0)/dailyArr.length
+          : 0;
+
+        // volume & per-share P/L
+        const totalShares = trades.reduce((a,t)=>a+(Number(t.qty || t.shares || t.volume || 0)),0);
+        const perSharePL = totalShares ? totalPL/totalShares : null;
+
+        // win / loss stats
+        const wins = pnls.filter(v=>v>0);
+        const losses = pnls.filter(v=>v<0);
+        const winCount = wins.length;
+        const lossCount = losses.length;
+        const winRate = n ? (winCount/n*100) : 0;
+        const avgWin = wins.length ? wins.reduce((a,b)=>a+b,0)/wins.length : null;
+        const avgLoss = losses.length ? losses.reduce((a,b)=>a+b,0)/losses.length : null;
+
+        // hold times
+        const getMinutes = (t) => {
+          const a = new Date(t.entry_time);
+          const b = new Date(t.exit_time);
+          if (isNaN(a) || isNaN(b)) return null;
+          return (b-a)/60000;
+        };
+        const scratchThreshold = 0.01;
+        let htScratch=[], htWin=[], htLoss=[];
+        trades.forEach(t=>{
+          const m = getMinutes(t);
+          if (m == null || m < 0) return;
+          const p = Number(t.pnl)||0;
+          if (Math.abs(p) < scratchThreshold) htScratch.push(m);
+          else if (p>0) htWin.push(m);
+          else if (p<0) htLoss.push(m);
+        });
+        const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+        const avgHoldScratch = avg(htScratch);
+        const avgHoldWin = avg(htWin);
+        const avgHoldLoss = avg(htLoss);
+
+        const scratchCount = htScratch.length || trades.filter(t=>Math.abs(Number(t.pnl)||0)<scratchThreshold).length;
+
+        // streaks based on exit time order
+        const ordered = [...trades].sort((a,b)=>{
+          const ta = new Date(a.exit_time || a.entry_time || a.date);
+          const tb = new Date(b.exit_time || b.entry_time || b.date);
+          return ta - tb;
+        });
+        let cur=0,maxWin=0,maxLoss=0;
+        ordered.forEach(t=>{
+          const p = Number(t.pnl)||0;
+          if (p>0){ cur = cur>=0 ? cur+1 : 1; maxWin=Math.max(maxWin,cur); }
+          else if (p<0){ cur = cur<=0 ? cur-1 : -1; maxLoss=Math.min(maxLoss,cur); }
+          else cur = 0;
+        });
+
+        // std dev + SQN-ish
+        const meanPnl = avgTradePL;
+        const variance = n>1
+          ? pnls.reduce((a,v)=>a+Math.pow(v-meanPnl,2),0)/(n-1)
+          : 0;
+        const stdPnl = Math.sqrt(variance);
+        const sqn = (stdPnl>0 && n>1) ? Math.sqrt(n) * (meanPnl/stdPnl) : null;
+
+        // commissions / fees
+        const totalCom = trades.reduce((a,t)=>a+(Number(t.commission)||0),0);
+        const totalFees = trades.reduce((a,t)=>a+(Number(t.fees)||0),0);
+
+        // profit factor (per-trade)
+        const pf = profitFactor(pnls);
+
+        // Kelly (simple)
+        let kelly=null;
+        if (avgWin!=null && avgLoss!=null && avgLoss!==0){
+          const p = winRate/100;
+          const q = 1-p;
+          const R = Math.abs(avgWin/avgLoss);
+          kelly = p - (q/R);
+        }
+
+        const moneyCell = (v) => fmtMoney(v).html;
+        const textCell  = (txt) => `<span class="stat-value">${txt || '—'}</span>`;
+        const percentCell = (v) => `<span class="stat-value">${fmtPercent(v)}</span>`;
+        const lockCell = () => `<span class="stat-value stat-lock">🔒</span>`;
+
+        const rows = [
+          [
+            { label:'Total Gain/Loss', value: moneyCell(totalPL) },
+            { label:'Largest Gain',    value: moneyCell(best) },
+            { label:'Largest Loss',    value: moneyCell(worst) },
+          ],
+          [
+            { label:'Average Daily Gain/Loss', value: moneyCell(avgDailyPL) },
+            { label:'Average Daily Volume',    value: textCell(avgDailyVol ? avgDailyVol.toFixed(0) : '—') },
+            { label:'Average Per-share Gain/Loss',
+              value: perSharePL==null ? textCell('—') :
+                     `<span class="stat-value">${perSharePL.toFixed(4)}</span>` },
+          ],
+          [
+            { label:'Average Trade Gain/Loss', value: moneyCell(avgTradePL) },
+            { label:'Average Winning Trade',   value: avgWin==null ? textCell('—') : moneyCell(avgWin) },
+            { label:'Average Losing Trade',    value: avgLoss==null ? textCell('—') : moneyCell(avgLoss) },
+          ],
+          [
+            { label:'Total Number of Trades',  value:`<span class="stat-value">${fmtCount(n)}</span>` },
+            { label:'Number of Winning Trades', value:`<span class="stat-value">${fmtCount(winCount)} (${fmtPercent(winRate)})</span>` },
+            { label:'Number of Losing Trades', value:`<span class="stat-value">${fmtCount(lossCount)} (${fmtPercent(100-winRate)})</span>` },
+          ],
+          [
+            { label:'Average Hold Time (scratch trades)', value:textCell(fmtDuration(avgHoldScratch)) },
+            { label:'Average Hold Time (winning trades)', value:textCell(fmtDuration(avgHoldWin)) },
+            { label:'Average Hold Time (losing trades)',  value:textCell(fmtDuration(avgHoldLoss)) },
+          ],
+          [
+            { label:'Number of Scratch Trades', value:`<span class="stat-value">${fmtCount(scratchCount)}</span>` },
+            { label:'Max Consecutive Wins',     value:`<span class="stat-value">${fmtCount(maxWin)}</span>` },
+            { label:'Max Consecutive Losses',   value:`<span class="stat-value">${fmtCount(Math.abs(maxLoss))}</span>` },
+          ],
+          [
+            { label:'Trade P&L Standard Deviation',
+              value: stdPnl ? `<span class="stat-value">$${stdPnl.toFixed(2)}</span>` : textCell('—') },
+            { label:'System Quality Number (SQN)',
+              value: sqn==null ? textCell('—') : `<span class="stat-value">${sqn.toFixed(2)}</span>` },
+            { label:'Probability of Random Chance', value: lockCell() },
+          ],
+          [
+            { label:'Kelly Percentage', value: kelly==null ? lockCell() : percentCell(kelly*100) },
+            { label:'K-Ratio',         value: lockCell() },
+            { label:'Profit factor',
+              value: pf==null ? textCell('—') : `<span class="stat-value">${pf.toFixed(2)}</span>` },
+          ],
+          [
+            { label:'Total Commissions',
+              value: totalCom ? moneyCell(totalCom) : textCell('—') },
+            { label:'Total Fees',
+              value: totalFees ? moneyCell(totalFees) : textCell('—') },
+            { label:'Average position MAE',
+              value: (()=> {
+                const maes = trades.map(t=>Number(t.mae)).filter(x=>isFinite(x));
+                if (!maes.length) return textCell('—');
+                const m = maes.reduce((a,b)=>a+b,0)/maes.length;
+                return `<span class="stat-value">${m.toFixed(3)}</span>`;
+              })()
+            },
+          ],
+          [
+            { label:'Average position MFE',
+              value: (()=> {
+                const mfes = trades.map(t=>Number(t.mfe)).filter(x=>isFinite(x));
+                if (!mfes.length) return textCell('—');
+                const m = mfes.reduce((a,b)=>a+b,0)/mfes.length;
+                return `<span class="stat-value">${m.toFixed(3)}</span>`;
+              })()
+            },
+            { label:'', value:'' },
+            { label:'', value:'' },
+          ]
+        ];
+
+        let html = '<div class="stats-wrapper"><table class="stats-table"><tbody>';
+        rows.forEach(r=>{
+          html += '<tr>';
+          r.forEach(cell=>{
+            if (!cell.label && !cell.value) {
+              html += '<td></td><td></td>';
+            } else {
+              html += `<td class="stat-label">${cell.label}</td><td class="stat-value-cell">${cell.value}</td>`;
+            }
+          });
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+        el.innerHTML = html;
+      },
+
+      /* --- Win vs Loss days (daily breakdown) --- */
+      win_loss_days: (el) => {
+        const trades = state.TRADES_EXT;
+        const hasTrades = trades.length > 0;
+
+        const getDate = (t) => (t.date || (t.entry_time && t.entry_time.slice(0,10)) || (t.exit_time && t.exit_time.slice(0,10)) || '');
+        const getMinutes = (t) => {
+          const a = new Date(t.entry_time);
+          const b = new Date(t.exit_time);
+          if (isNaN(a) || isNaN(b)) return null;
+          return (b-a)/60000;
+        };
+
+        const dayMap = new Map();
+        const ensureDay = (d) => {
+          if (!dayMap.has(d)) {
+            dayMap.set(d, { pnl:0, volume:0, trades:[], commissions:0, fees:0, maes:[], mfes:[], holdWin:[], holdLoss:[] });
+          }
+          return dayMap.get(d);
+        };
+
+        if (hasTrades) {
+          trades.forEach(t => {
+            const d = getDate(t) || '—';
+            const rec = ensureDay(d);
+            const pnl = Number(t.pnl) || 0;
+            rec.pnl += pnl;
+            rec.volume += Number(t.qty || t.shares || t.volume || 0);
+            rec.trades.push(t);
+            rec.commissions += Number(t.commission) || 0;
+            rec.fees += Number(t.fees) || 0;
+            const mae = Number(t.mae); if (isFinite(mae)) rec.maes.push(mae);
+            const mfe = Number(t.mfe); if (isFinite(mfe)) rec.mfes.push(mfe);
+            const mins = getMinutes(t);
+            if (isFinite(mins) && mins >= 0){
+              if (pnl > 0) rec.holdWin.push(mins);
+              else if (pnl < 0) rec.holdLoss.push(mins);
+            }
+          });
+        }
+
+        // Fallback to daily P&L arrays when trade-level data not available
+        if (!dayMap.size && state.L30_DPL.length) {
+          state.L30_DPL.forEach((pnl, idx) => {
+            const d = state.L30_LABELS[idx] || `Day ${idx+1}`;
+            const rec = ensureDay(d);
+            rec.pnl += Number(pnl) || 0;
+            rec.volume += Number(state.L30_VOL[idx]) || 0;
+          });
+        }
+
+        const days = [...dayMap.values()];
+        if (!days.length) {
+          empty(el, 'Need trades or daily P&L to compare winning vs losing days.');
+          return;
+        }
+
+        const winDays = days.filter(d => d.pnl > 0);
+        const lossDays = days.filter(d => d.pnl < 0);
+        const avg = (arr) => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+
+        const summarize = (bucket) => {
+          if (!bucket.length) return null;
+          const dayPnls = bucket.map(d => d.pnl);
+          const tradesAll = bucket.flatMap(d => d.trades);
+          const tradePnls = tradesAll.map(t => Number(t.pnl) || 0);
+          const totalPL = dayPnls.reduce((a,b)=>a+b,0);
+          const totalVolume = bucket.reduce((a,d)=>a+(Number(d.volume)||0),0);
+          const avgDailyPL = totalPL / bucket.length;
+          const avgDailyVol = bucket.length ? totalVolume / bucket.length : null;
+          const perShare = totalVolume ? totalPL / totalVolume : null;
+          const totalTrades = tradesAll.length;
+          const winTrades = tradesAll.filter(t => (Number(t.pnl)||0) > 0);
+          const lossTrades = tradesAll.filter(t => (Number(t.pnl)||0) < 0);
+          const winRate = totalTrades ? (winTrades.length/totalTrades*100) : null;
+          const avgWinTrade = winTrades.length ? winTrades.reduce((a,t)=>a+(Number(t.pnl)||0),0)/winTrades.length : null;
+          const avgLossTrade = lossTrades.length ? lossTrades.reduce((a,t)=>a+(Number(t.pnl)||0),0)/lossTrades.length : null;
+          const meanTrade = totalTrades ? tradePnls.reduce((a,b)=>a+b,0)/totalTrades : 0;
+          const variance = tradePnls.length>1
+            ? tradePnls.reduce((a,v)=>a+Math.pow(v-meanTrade,2),0)/(tradePnls.length-1)
+            : 0;
+          const stdPnl = Math.sqrt(variance);
+          const sqn = (stdPnl>0 && tradePnls.length>1) ? Math.sqrt(tradePnls.length) * (meanTrade/stdPnl) : null;
+          const pf = profitFactor(tradePnls);
+          let kelly=null;
+          if (avgWinTrade!=null && avgLossTrade!=null && avgLossTrade!==0 && winRate!=null){
+            const p = winRate/100;
+            const q = 1-p;
+            const R = Math.abs(avgWinTrade/avgLossTrade);
+            kelly = p - (q/R);
+          }
+          return {
+            totalPL,
+            avgDailyPL,
+            avgDailyVol,
+            perShare,
+            avgTradePL: totalTrades ? meanTrade : null,
+            totalTrades,
+            winTrades: winTrades.length,
+            lossTrades: lossTrades.length,
+            winRate,
+            avgWinTrade,
+            avgLossTrade,
+            stdPnl: stdPnl || null,
+            sqn,
+            pf,
+            kelly,
+            largestGain: dayPnls.length ? Math.max(...dayPnls) : null,
+            largestLoss: dayPnls.length ? Math.min(...dayPnls) : null,
+            avgMfe: avg(bucket.flatMap(d=>d.mfes||[])),
+            avgMae: avg(bucket.flatMap(d=>d.maes||[])),
+            totalCom: bucket.reduce((a,d)=>a+(Number(d.commissions)||0),0) || null,
+            totalFees: bucket.reduce((a,d)=>a+(Number(d.fees)||0),0) || null,
+            avgHoldWin: avg(bucket.flatMap(d=>d.holdWin||[])),
+            avgHoldLoss: avg(bucket.flatMap(d=>d.holdLoss||[]))
+          };
+        };
+
+        const renderValue = (label, value) => `<div class="winloss-row"><span class="winloss-label">${label}</span><span class="winloss-value">${value}</span></div>`;
+        const textCell = (txt='--') => `<span class="stat-value">${txt}</span>`;
+        const moneyCell = (v) => v==null ? textCell('--') : fmtMoney(v).html;
+        const percentCell = (v) => v==null ? textCell('--') : `<span class="stat-value">${fmtPercent(v)}</span>`;
+        const durationCell = (mins) => textCell(fmtDuration(mins));
+        const lockCell = () => `<span class="stat-value stat-lock">dY"'</span>`;
+
+        const buildCol = (title, stats) => {
+          const body = !stats ? `<div class="winloss-row"><span class="winloss-label">No ${title.toLowerCase()} available</span></div>` : [
+            renderValue('Total Gain / Loss', moneyCell(stats.totalPL)),
+            renderValue('Average Daily Gain / Loss', moneyCell(stats.avgDailyPL)),
+            renderValue('Average Daily Volume', stats.avgDailyVol==null ? textCell('--') : textCell((stats.avgDailyVol||0).toFixed(0))),
+            renderValue('Average Per-Share Gain / Loss', stats.perShare==null ? textCell('--') : textCell(stats.perShare.toFixed(4))),
+            renderValue('Average Trade Gain / Loss', moneyCell(stats.avgTradePL)),
+            renderValue('Total Number of Trades', textCell(stats.totalTrades ?? '--')),
+            renderValue('Winning Trades', stats.winRate==null ? textCell('--') : textCell(`${stats.winTrades} (${fmtPercent(stats.winRate)})`)),
+            renderValue('Losing Trades', stats.winRate==null ? textCell('--') : textCell(`${stats.lossTrades} (${fmtPercent(100 - stats.winRate)})`)),
+            renderValue('Average Winning Trade', moneyCell(stats.avgWinTrade)),
+            renderValue('Average Losing Trade', moneyCell(stats.avgLossTrade)),
+            renderValue('Trade P&L Standard Deviation', stats.stdPnl==null ? textCell('--') : moneyCell(stats.stdPnl)),
+            renderValue('Probability of Random Chance', lockCell()),
+            renderValue('K-ratio', lockCell()),
+            renderValue('System Quality Number (SQN)', stats.sqn==null ? textCell('--') : textCell(stats.sqn.toFixed(2))),
+            renderValue('Kelly Percentage', stats.kelly==null ? lockCell() : percentCell(stats.kelly*100)),
+            renderValue('Average Hold Time (Winning Trades)', stats.avgHoldWin==null ? textCell('--') : durationCell(stats.avgHoldWin)),
+            renderValue('Average Hold Time (Losing Trades)', stats.avgHoldLoss==null ? textCell('--') : durationCell(stats.avgHoldLoss)),
+            renderValue('Profit factor', stats.pf==null ? textCell('--') : textCell(stats.pf.toFixed(2))),
+            renderValue('Largest Gain', moneyCell(stats.largestGain)),
+            renderValue('Largest Loss', moneyCell(stats.largestLoss)),
+            renderValue('Average Position MFE', stats.avgMfe==null ? textCell('--') : textCell(stats.avgMfe.toFixed(3))),
+            renderValue('Average Position MAE', stats.avgMae==null ? textCell('--') : textCell(stats.avgMae.toFixed(3))),
+            renderValue('Total Commissions', stats.totalCom==null ? textCell('--') : moneyCell(stats.totalCom)),
+            renderValue('Total Fees', stats.totalFees==null ? textCell('--') : moneyCell(stats.totalFees)),
+          ].join('');
+
+          return `<div class="winloss-card"><h3>${title}</h3><div class="winloss-list">${body}</div></div>`;
+        };
+
+        const html = `<div class="winloss-grid">
+          ${buildCol('Winning Days', summarize(winDays))}
+          ${buildCol('Losing Days', summarize(lossDays))}
+        </div>`;
+
+        el.innerHTML = html;
+      },
+
+      /* ---- Charts: performance, risk, activity ---- */
+
       pl_by_symbol: (el) => {
         const x = state.SYM_DATA.map(r => r.Symbol ?? r.symbol ?? '');
         const y = state.SYM_DATA.map(r => Number(r.PnL ?? r.pnl ?? 0));
         const c = y.map(v => v >= 0 ? cssVar('--pos') : cssVar('--neg'));
+        if (!x.length) return empty(el,'No symbol data.');
         plot(el, [{ type:'bar', x, y, marker:{ color:c } }], {
           title:'P/L by Symbol', xaxis:{ title:'Symbol' }, yaxis:{ title:'P/L (USD)' }
         });
@@ -341,13 +953,13 @@
           side:  (r.Side ?? r.side ?? '').toString().toLowerCase(),
           count: Number(r.Count ?? r.count ?? 0)
         }));
+        if (!rows.length) return empty(el,'No side data.');
         const labels = rows.map(r => r.side.charAt(0).toUpperCase() + r.side.slice(1));
         const values = rows.map(r => r.count);
         const colors = rows.map(r => r.side === 'sell'
-          ? cssVar('--neg', '#ef4444')   // Sell -> red
-          : cssVar('--pos', '#10b981')   // Buy  -> green
+          ? cssVar('--neg', '#ef4444')
+          : cssVar('--pos', '#10b981')
         );
-
         plot(el, [{
           type: 'pie',
           labels, values,
@@ -356,25 +968,28 @@
           marker: { colors }
         }], { title: 'Trades by Side' });
       },
-
       daily_pl: (el) => {
+        if (!state.L30_LABELS.length) return empty(el,'No daily P&L data.');
         const c = state.L30_DPL.map(v => v >= 0 ? cssVar('--pos') : cssVar('--neg'));
         plot(el, [{ type:'bar', x: state.L30_LABELS, y: state.L30_DPL, marker:{ color:c } }], {
-          title:'Daily P&L (Trade-Based)', xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'P/L (USD)' }
+          title:'Daily P&L', xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'P/L (USD)' }
         });
       },
       equity_curve: (el) => {
+        if (!state.L30_LABELS.length) return empty(el,'No equity data.');
         plot(el, [{
           x: state.L30_LABELS, y: state.L30_EQ, mode:'lines+markers',
           line:{ width:2, color: cssVar('--pos') }, marker:{ size:5, color: cssVar('--pos') }
         }], { title:'Cumulative P&L', xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'Equity (USD)' } });
       },
       daily_volume: (el) => {
+        if (!state.L30_LABELS.length) return empty(el,'No volume data.');
         plot(el, [{ type:'bar', x: state.L30_LABELS, y: state.L30_VOL, marker:{ color: cssVar('--pos') } }], {
           title:'Daily Volume', xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'Shares' }
         });
       },
       win_rate: (el) => {
+        if (!state.L30_LABELS.length) return empty(el,'No win% data.');
         plot(el, [{ type:'bar', x: state.L30_LABELS, y: state.L30_WIN, marker:{ color: cssVar('--pos') } }], {
           title:'Win % (30 Days)', xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'% Wins', range:[0,100] }
         });
@@ -425,14 +1040,14 @@
         ], { title:'Best vs Worst Day', barmode:'group', xaxis:{ title:'Day' }, yaxis:{ title:'P&L (USD)' }, showlegend:true });
       },
       profit_factor: (el) => {
-        const pf = profitFactorFromDaily(state.L30_DPL);
+        const pf = profitFactor(state.L30_DPL);
         if (pf==null) return empty(el,'Profit factor undefined (no losing days in window).');
         plot(el, [{ type:'indicator', mode:'number+gauge', value:pf, number:{ valueformat:'.2f' },
           title:{ text:'Profit Factor (overall)' }, gauge:{ shape:'bullet', axis:{ range:[0, Math.max(2.5, pf*1.2)] }, bar:{ thickness:0.6 } },
           domain:{ x:[0.1,0.95], y:[0.2,0.8] } }], { margin:{ t:30, l:30, r:30, b:30 }, height:220 });
       },
 
-      /* per-trade (needs TRADES_EXT) */
+      /* per-trade widgets */
       mae_mfe: (el) => {
         if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with per-trade MAE/MFE to render this.');
         const x = state.TRADES_EXT.map(t=>Number(t.mae)||0);
@@ -450,19 +1065,25 @@
         if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with entry_time.');
         const hours=[...Array(24)].map((_,i)=>i), days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
         const z=days.map(_=>hours.map(_=>0));
-        state.TRADES_EXT.forEach(t=>{ const dt=new Date(t.entry_time); z[dt.getDay()][dt.getHours()] += Number(t.pnl)||0; });
+        state.TRADES_EXT.forEach(t=>{ const dt=new Date(t.entry_time); if(isNaN(dt))return; z[dt.getDay()][dt.getHours()] += Number(t.pnl)||0; });
         plot(el, [{ type:'heatmap', x:hours, y:days, z:z, colorscale:'Portland', zsmooth:false }], {
           title:'Time-of-Day Performance (sum P&L)', xaxis:{ title:'Hour' }, yaxis:{ title:'Weekday' }
         });
       },
       hold_time_hist: (el) => {
         if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with entry_time & exit_time.');
-        const mins = state.TRADES_EXT.map(t=> (new Date(t.exit_time)-new Date(t.entry_time))/60000 ).filter(x=>isFinite(x)&&x>=0);
+        const mins = state.TRADES_EXT.map(t=> {
+          const a = new Date(t.exit_time);
+          const b = new Date(t.entry_time);
+          if (isNaN(a)||isNaN(b)) return NaN;
+          return (a-b)/60000;
+        }).filter(x=>isFinite(x)&&x>=0);
         plot(el, [{ type:'histogram', x:mins, nbinsx:30, marker:{ color: cssVar('--pos') } }], { title:'Holding-Time Histogram', xaxis:{ title:'Minutes' }, yaxis:{ title:'Trades' }});
       },
       commissions_curve: (el) => {
         if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with commission per trade.');
-        let cum=0; const x=[], y=[]; [...state.TRADES_EXT].sort((a,b)=> (a.date||'').localeCompare(b.date||''))
+        let cum=0; const x=[], y=[];
+        [...state.TRADES_EXT].sort((a,b)=> (a.date||'').localeCompare(b.date||''))
           .forEach(t=>{ cum+=Number(t.commission)||0; x.push(t.date||''); y.push(cum); });
         plot(el, [{ x,y, mode:'lines+markers', line:{ color: cssVar('--pos') }, marker:{ color: cssVar('--pos') } }], {
           title:'Cumulative Commissions / Fees', xaxis:{ title:'Date', tickangle:-30 }, yaxis:{ title:'USD' }
@@ -484,30 +1105,154 @@
         const entries=[...bySym.entries()].map(([s,v])=>[s, v.n?(v.w/v.n*100):0, v.n]).sort((a,b)=>b[2]-a[2]).slice(0,20);
         const x=entries.map(e=>e[0]), y=entries.map(e=>e[1]);
         plot(el, [{ type:'bar', x,y, marker:{ color: cssVar('--pos') } }], { title:'Symbol Win% (top by sample size)', xaxis:{ title:'Symbol' }, yaxis:{ title:'Win %', range:[0,100] }});
+      },
+
+      /* Days/Times charts */
+      pnl_by_minute: (el) => {
+        if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with entry_time + P&L.');
+        const { labels, values, hits } = pnlByMinute(state.TRADES_EXT);
+        if (!labels.length) return empty(el,'Minute window could not be built (expected HH:MM).');
+        if (!hits) return empty(el,'No trades between 09:30 and 11:30.');
+        const tickLabels = labels.filter((_,i)=> i % 15 === 0);
+        plot(el, [{
+          type:'bar',
+          x: labels,
+          y: values,
+          marker:{ color: values.map(v => v>=0 ? cssVar('--pos') : cssVar('--neg')) }
+        }], {
+          title:'P&L by Minute (09:30-11:30)',
+          xaxis:{ title:'Minute of Day', tickangle:-45, tickmode:'array', tickvals: tickLabels, ticktext: tickLabels },
+          yaxis:{ title:'P&L (USD)' }
+        });
+      },
+      trades_count_by_minute: (el) => {
+        if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with entry_time.');
+        const { labels, counts, hits } = tradeCountByMinute(state.TRADES_EXT);
+        if (!labels.length) return empty(el,'Minute window could not be built (expected HH:MM).');
+        if (!hits) return empty(el,'No trades between 09:30 and 11:30.');
+        const tickLabels = labels.filter((_,i)=> i % 15 === 0);
+        plot(el, [{
+          type:'bar',
+          x: labels,
+          y: counts,
+          marker:{ color: cssVar('--pos') }
+        }], {
+          title:'Trades by Minute (09:30-11:30)',
+          xaxis:{ title:'Minute of Day', tickangle:-45, tickmode:'array', tickvals: tickLabels, ticktext: tickLabels },
+          yaxis:{ title:'Trades' }
+        });
+      },
+      trades_by_dow: (el) => {
+        if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with entry_time or date.');
+        const { dayCounts } = tradesAndPerfByDayAndHour(state.TRADES_EXT);
+        const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const order    = [1,2,3,4,5,6,0]; // Mon..Sun
+        const y = order.map(i => dayNames[i]);
+        const x = order.map(i => dayCounts[i]);
+        plot(el, [{
+          type:'bar',
+          orientation:'h',
+          x,
+          y,
+          marker:{ color: cssVar('--pos') }
+        }], {
+          title:'Trade Distribution by Day of Week',
+          xaxis:{ title:'Number of Trades' },
+          yaxis:{ title:'' }
+        });
+      },
+      perf_by_dow: (el) => {
+        if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with P&L + time.');
+        const { dayPl } = tradesAndPerfByDayAndHour(state.TRADES_EXT);
+        const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const order    = [1,2,3,4,5,6,0];
+        const yLabels  = order.map(i => dayNames[i]);
+        const values   = order.map(i => dayPl[i]);
+        const colors   = values.map(v => v>=0 ? cssVar('--pos') : cssVar('--neg'));
+        plot(el, [{
+          type:'bar',
+          orientation:'h',
+          x: values,
+          y: yLabels,
+          marker:{ color: colors }
+        }], {
+          title:'Performance by Day of Week',
+          xaxis:{ title:'P&L (USD)' },
+          yaxis:{ title:'' }
+        });
+      },
+      trades_by_hour: (el) => {
+        if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with entry_time or date.');
+        const { hourCounts } = tradesAndPerfByDayAndHour(state.TRADES_EXT);
+        const entries = hourCounts.map((c,h)=>({h,c})).filter(r=>r.c>0);
+        if (!entries.length) return empty(el,'No intraday trade times.');
+        const x = entries.map(r => `${String(r.h).padStart(2,'0')}:00`);
+        const y = entries.map(r => r.c);
+        plot(el, [{
+          type:'bar',
+          x,
+          y,
+          marker:{ color: cssVar('--pos') }
+        }], {
+          title:'Trade Distribution by Hour of Day',
+          xaxis:{ title:'Hour of Day' },
+          yaxis:{ title:'Number of Trades' }
+        });
+      },
+      perf_by_hour: (el) => {
+        if (!state.TRADES_EXT.length) return empty(el,'Provide TRADES_EXT with P&L + time.');
+        const { hourPl } = tradesAndPerfByDayAndHour(state.TRADES_EXT);
+        const entries = hourPl.map((p,h)=>({h,p})).filter(r=>r.p!==0);
+        if (!entries.length) return empty(el,'No P&L by hour available.');
+        const x = entries.map(r => `${String(r.h).padStart(2,'0')}:00`);
+        const y = entries.map(r => r.p);
+        const c = y.map(v => v>=0 ? cssVar('--pos') : cssVar('--neg'));
+        plot(el, [{
+          type:'bar',
+          x,
+          y,
+          marker:{ color:c }
+        }], {
+          title:'Performance by Hour of Day',
+          xaxis:{ title:'Hour of Day' },
+          yaxis:{ title:'P&L (USD)' }
+        });
       }
     };
 
-    /* ---------- persistence ---------- */
-    const STORAGE_KEY = 'reports.widgets.v3';
+    /* ---------- persistence & page layouts ---------- */
+    let currentPage = 'stats';
+
+    const DEFAULT_LAYOUTS = {
+      stats: [ 'stats_panel' ],
+      days:  [ 'trades_by_dow','perf_by_dow','trades_by_hour','perf_by_hour','pnl_by_minute','trades_count_by_minute' ],
+      price_volume: [ 'pl_by_symbol','daily_pl','daily_volume','daily_pl_hist' ],
+      instrument:   [ 'pl_by_symbol','symbol_winrate','setup_perf' ],
+      market_behavior: [ 'weekday_perf','time_of_day_heat','streaks','rolling_win' ],
+      win_loss: [ 'win_loss_days' ],
+      liquidity: [ 'daily_volume','commissions_curve' ]
+    };
+
+    const storageKeyFor = (page) => `reports.widgets.v3.${page}`;
+
     const saveLayout = () => {
       const ids = [...document.querySelectorAll('#widgetGrid .widget')].map(w => w.dataset.type);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+      localStorage.setItem(storageKeyFor(currentPage), JSON.stringify(ids));
     };
-    const loadLayout = () => {
-      try { const a = JSON.parse(localStorage.getItem(STORAGE_KEY)); return Array.isArray(a) ? a : null; }
+    const loadLayout = (page = currentPage) => {
+      try { const a = JSON.parse(localStorage.getItem(storageKeyFor(page))); return Array.isArray(a) ? a : null; }
       catch { return null; }
     };
     const resetLayout = () => {
-      const defaults = [
-        'kpi_fills','kpi_win','kpi_total_pl','kpi_best','kpi_worst','kpi_avg_pl',
-        'pl_by_symbol','daily_pl','equity_curve','daily_pl_hist','drawdown_curve','weekday_perf'
-      ];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+      const defaults = DEFAULT_LAYOUTS[currentPage] || [];
+      localStorage.setItem(storageKeyFor(currentPage), JSON.stringify(defaults));
       renderFromLayout(defaults);
     };
 
     /* ---------- widget factory + drag & drop ---------- */
     const titles = {
+      stats_panel:'Stats',
+      win_loss_days:'Win vs Loss Days',
       kpi_fills:'Fills', kpi_win:'Win %', kpi_total_pl:'Total P/L', kpi_best:'Best', kpi_worst:'Worst', kpi_avg_pl:'Avg P/L',
       pl_by_symbol:'P/L by Symbol', trades_by_side:'Trades by Side',
       daily_pl:'Gross Daily P&L (30 Days)', equity_curve:'Gross Cumulative P&L (30 Days)',
@@ -516,7 +1261,11 @@
       weekday_perf:'Weekday Performance', streaks:'Win/Loss Streaks', best_worst_day:'Best vs Worst Day',
       profit_factor:'Profit Factor (overall)', mae_mfe:'MAE vs MFE', r_multiple_hist:'R-Multiple Histogram',
       time_of_day_heat:'Time-of-Day Heatmap', hold_time_hist:'Holding-Time Histogram',
-      commissions_curve:'Commissions / Fees', setup_perf:'Performance by Setup/Tag', symbol_winrate:'Symbol Win%'
+      commissions_curve:'Commissions / Fees', setup_perf:'Performance by Setup/Tag', symbol_winrate:'Symbol Win%',
+      trades_by_dow:'Trade Distribution by Day of Week', perf_by_dow:'Performance by Day of Week',
+      trades_by_hour:'Trade Distribution by Hour of Day', perf_by_hour:'Performance by Hour of Day',
+      pnl_by_minute:'P/L by Minute',
+      trades_count_by_minute:'Trades by Minute'
     };
 
     let wid = 1;
@@ -567,11 +1316,15 @@
       return w;
     };
 
-    function renderFromLayout(layout){
-      const grid = document.getElementById('widgetGrid');
-      grid.innerHTML = '';
-      layout.forEach(t => grid.appendChild(makeWidget(t)));
-    }
+      function renderFromLayout(layout){
+        const grid = document.getElementById('widgetGrid');
+        grid.classList.toggle('stats-full', currentPage === 'stats');
+        grid.classList.toggle('single-col', layout.length <= 1);
+        grid.innerHTML = '';
+        layout.forEach(t => {
+          if (renderers[t]) grid.appendChild(makeWidget(t));
+        });
+      }
 
     /* ---------- picker logic ---------- */
     const picker = document.getElementById('picker');
@@ -595,7 +1348,9 @@
     document.getElementById('pickerAdd').onclick = () => {
       const selected = [...picker.querySelectorAll('input:checked')].map(i => i.value);
       const grid = document.getElementById('widgetGrid');
-      selected.forEach(t => grid.appendChild(makeWidget(t)));
+      selected.forEach(t => {
+        if (renderers[t]) grid.appendChild(makeWidget(t));
+      });
       picker.querySelectorAll('input').forEach(i => i.checked = false);
       closePicker(); saveLayout();
     };
@@ -604,11 +1359,20 @@
 
     /* ---------- init ---------- */
     document.addEventListener('DOMContentLoaded', () => {
-      const layout = loadLayout() || [
-        'kpi_fills','kpi_win','kpi_total_pl','kpi_best','kpi_worst','kpi_avg_pl',
-        'pl_by_symbol','daily_pl','equity_curve','daily_pl_hist','drawdown_curve','weekday_perf'
-      ];
-      renderFromLayout(layout);
+      const tabButtons = document.querySelectorAll('.reports-tabs button');
+      tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const page = btn.dataset.page;
+          if (!page || page === currentPage) return;
+          currentPage = page;
+          tabButtons.forEach(b => b.classList.toggle('active', b === btn));
+          const layout = loadLayout(currentPage) || DEFAULT_LAYOUTS[currentPage] || [];
+          renderFromLayout(layout);
+        });
+      });
+
+      const initialLayout = loadLayout(currentPage) || DEFAULT_LAYOUTS[currentPage] || [];
+      renderFromLayout(initialLayout);
     });
   </script>
 </body>

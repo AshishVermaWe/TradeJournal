@@ -1,0 +1,26 @@
+{
+  "defined_rules": "Only take trades near the VWAP and stick to only VWAP Breakouts\nTake PML Breakouts with 0 Risk, so (Breakeven stop loss right at entry)\nSave yourself and your mental energy\nDo not trade anything else (Trade your setup, not the emotion)\nIf you have a loss, please do not lose it and take a trade right away (It has NEVER gone into your favour) Look at the reference (out of box) to take another trade if you want to\nThe first partial should be around 1.5R from now on to make it worth it. Make it 60% of your position\nNo low price stocks (Anything less than $80)",
+  "items": [
+    {
+      "id": "75a6f605-0e75-4803-aabb-d2f4d94b08b4",
+      "title": "Take Partials @1.5R",
+      "category": "Risk",
+      "status": "Active",
+      "detail": "Go for at least 60% of the position"
+    },
+    {
+      "id": "ef9ef856-37d5-4724-995c-da8dac0ae9f3",
+      "title": "VWAP Breakouts",
+      "category": "Playbook",
+      "status": "Active",
+      "detail": "Only taking a trade near VWAP"
+    },
+    {
+      "id": "process_setup",
+      "title": "PML Breakouts",
+      "category": "Process",
+      "status": "Active",
+      "detail": "Only in the first 3 Minutes, preferably at 9.32"
+    }
+  ]
+}

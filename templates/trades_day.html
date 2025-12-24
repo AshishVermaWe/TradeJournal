@@ -9,7 +9,7 @@
 
   <div class="card">
     <div class="table-wrap">
-      <table class="table-wide">
+      <table class="table-wide sortable-trades" id="tradesDayTable">
         <thead>
           <tr>
             <th style="text-align:left;">Time</th>
@@ -26,3 +26,81 @@
     </div>
   </div>
 </section>
+
+<script>
+(function () {
+  const tables = document.querySelectorAll('.sortable-trades');
+  if (!tables.length) return;
+
+  if (!document.getElementById('trades-sort-style')) {
+    const style = document.createElement('style');
+    style.id = 'trades-sort-style';
+    style.textContent = `
+      .sort-indicator{margin-left:6px;font-size:11px;opacity:.6;}
+      th[role="button"]{user-select:none; cursor:pointer;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  const parseNum = (txt) => parseFloat(txt.replace(/[^0-9.-]/g, '')) || 0;
+  const parseStr = (txt) => (txt || '').toLowerCase();
+  const parseTimeOnly = (txt) => {
+    const m = String(txt).match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)?/i);
+    if (!m) return 0;
+    let h = parseInt(m[1], 10) % 12;
+    const mins = parseInt(m[2], 10) || 0;
+    if (m[3] && /pm/i.test(m[3])) h += 12;
+    return h * 60 + mins;
+  };
+
+  tables.forEach((table) => {
+    const tbody = table.querySelector('tbody');
+    const headers = Array.from(table.querySelectorAll('thead th'));
+    if (!tbody || !headers.length) return;
+
+    let state = { col: null, dir: 1 };
+
+    headers.forEach((th, i) => {
+      const indicator = document.createElement('span');
+      indicator.className = 'sort-indicator';
+      indicator.textContent = '↕';
+      th.appendChild(indicator);
+      th.setAttribute('role', 'button');
+      th.setAttribute('aria-sort', 'none');
+
+      th.addEventListener('click', () => {
+        const dir = state.col === i ? -state.dir : 1;
+        state = { col: i, dir };
+
+        headers.forEach((h, j) => {
+          h.setAttribute('aria-sort', state.col === j ? (state.dir === 1 ? 'ascending' : 'descending') : 'none');
+          const icon = h.querySelector('.sort-indicator');
+          if (icon) icon.textContent = state.col === j ? (state.dir === 1 ? '▲' : '▼') : '↕';
+        });
+
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const parser = [
+          parseTimeOnly, // Time (ignore date, sort by HH:MM)
+          parseStr,      // Symbol
+          parseStr,      // Side
+          parseNum,      // Volume
+          parseNum,      // P/L
+          parseNum,      // Executions
+          parseStr       // Status
+        ][i] || parseStr;
+
+        rows.sort((a, b) => {
+          const aVal = parser(a.children[i]?.innerText.trim() || '');
+          const bVal = parser(b.children[i]?.innerText.trim() || '');
+          if (aVal < bVal) return -dir;
+          if (aVal > bVal) return dir;
+          return 0;
+        });
+
+        tbody.innerHTML = '';
+        rows.forEach(r => tbody.appendChild(r));
+      });
+    });
+  });
+})();
+</script>

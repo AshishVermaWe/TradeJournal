@@ -2,7 +2,7 @@ from __future__ import annotations
 from wsgiref.simple_server import make_server
 from urllib.parse import parse_qs
 from html import escape
-import os, json, calendar, math
+import os, json, calendar, math, uuid
 from datetime import datetime, date, timedelta, timezone
 from string import Template
 from email.parser import BytesParser
@@ -22,7 +22,11 @@ STATIC_DIR = os.path.join(ROOT, "static")
 DATA_DIR   = os.path.join(ROOT, "data")
 STORE_PATH = os.path.join(DATA_DIR, "trades.json")
 NOTES_PATH = os.path.join(DATA_DIR, "journal_notes.json")
+RULES_PATH = os.path.join(DATA_DIR, "rules.json")
+CHECKLIST_PATH = os.path.join(DATA_DIR, "rules_checklist.json")
 os.makedirs(DATA_DIR, exist_ok=True)
+
+DEFAULT_TZ = "America/New_York"  # ET (EST/EDT)
 
 # ---------------------------- in-memory cache ----------------------------
 LAST = {
@@ -189,18 +193,15 @@ def _daily_map_from_fills(fills: Iterable[dict]) -> dict[date, dict]:
     Map of day -> {'pl': realized_net_for_day, 'count': fills_count}
     """
     m: dict[date, dict] = {}
-    # count stays as fills; pl uses realized calculation
     by_day = {}
     for f in fills:
         d = f["date"]
         by_day.setdefault(d, []).append(f)
     for d, arr in by_day.items():
-        # reuse the same engine by calling the ISO version
-        ser = _day_realized_series(d.isoformat())
+        ser = _day_realized_series(d.isoformat(), arr)
         pl = ser["cum"][-1] if ser["cum"] else 0.0
         m[d] = {"pl": float(pl), "count": len(arr)}
     return m
-
 
 def _month_name(y, m):
     import calendar as _cal
@@ -242,13 +243,46 @@ def _dashboard_kpis():
         "L30": l30,
     }
 
-# ---------------------------- market data (for charts) ----------------------------
-DEFAULT_TZ = "America/New_York"  # ET (EST/EDT)
+# ---------- TRADES_EXT payload for reports ----------
+def _build_trades_ext_payload() -> list[dict]:
+    """
+    Flatten LAST['trades'] into the per-trade list used by the
+    stats widgets on /reports (TRADES_EXT).
+    """
+    trades = LAST.get("trades") or []
+    out: list[dict] = []
 
+    for t in trades:
+        execs = t.get("executions", []) or []
+
+        if execs:
+            first_dt = min(e["datetime"] for e in execs)
+            last_dt  = max(e["datetime"] for e in execs)
+        else:
+            first_dt = t.get("open_time")
+            last_dt  = t.get("close_time") or t.get("open_time")
+
+        day = first_dt.date().isoformat() if first_dt else ""
+
+        out.append({
+            "symbol": t.get("symbol"),
+            "date": day,                                   # "YYYY-MM-DD"
+            "entry_time": first_dt.isoformat() if first_dt else None,
+            "exit_time":  last_dt.isoformat() if last_dt else None,
+            "pnl": float(t.get("pnl") or 0.0),
+            "qty": int(t.get("volume") or 0),
+            "commission": 0.0,
+            "fees": float(t.get("fees") or 0.0),
+            "mae": t.get("mae"),
+            "mfe": t.get("mfe"),
+            "fills": int(t.get("executions_count", len(execs))),
+            "tags": t.get("tags") or [],
+        })
+
+    return out
+
+# ---------------------------- market data (for charts) ----------------------------
 def _day_bounds_utc(yyyymmdd: str, tz_name: str):
-    """
-    Return (start_utc_ts, end_utc_ts) for the entire calendar day in tz_name.
-    """
     tz = ZoneInfo(tz_name)
     y, m, d = int(yyyymmdd[0:4]), int(yyyymmdd[4:6]), int(yyyymmdd[6:8])
     start_local = datetime(y, m, d, 0, 0, 0, tzinfo=tz)
@@ -256,11 +290,6 @@ def _day_bounds_utc(yyyymmdd: str, tz_name: str):
     return int(start_local.astimezone(timezone.utc).timestamp()), int(end_local.astimezone(timezone.utc).timestamp())
 
 def _yahoo_chart_url(symbol: str, yyyymmdd: str | None, tz_name: str):
-    """
-    Build a Yahoo Finance chart URL for 1m candles with includePrePost=true,
-    limited to yyyymmdd (in tz_name). If yyyymmdd == "today" in tz_name,
-    use range=1d; otherwise period1/period2 (UTC) for that local day.
-    """
     base = "https://query1.finance.yahoo.com/v8/finance/chart/" + urllib.parse.quote(symbol)
     today_local = datetime.now(ZoneInfo(tz_name)).strftime("%Y%m%d")
     if yyyymmdd is None:
@@ -273,9 +302,6 @@ def _yahoo_chart_url(symbol: str, yyyymmdd: str | None, tz_name: str):
     return base + "?" + urllib.parse.urlencode(qs)
 
 def fetch_intraday_1m(symbol: str, yyyymmdd: str | None, tz_name: str):
-    """
-    Always fetch 1m candles (with pre/post) from Yahoo; caller can resample to 5m.
-    """
     url = _yahoo_chart_url(symbol, yyyymmdd, tz_name)
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=15) as r:
@@ -306,17 +332,14 @@ def fetch_intraday_1m(symbol: str, yyyymmdd: str | None, tz_name: str):
     return candles
 
 def _resample_5m(candles_1m: list[dict]) -> list[dict]:
-    """
-    Aggregate 1m -> 5m. Keeps epoch seconds (UTC) aligned to the bucket start.
-    """
     if not candles_1m:
         return []
     out: list[dict] = []
     cur = None
     cur_bucket = None
-    for c in sorted(candles_1m, key=lambda x: int(x["time"])):  # ensure ascending
+    for c in sorted(candles_1m, key=lambda x: int(x["time"])):
         t = int(c["time"])
-        bucket = (t // 300) * 300  # five minutes
+        bucket = (t // 300) * 300
         if bucket != cur_bucket:
             if cur:
                 out.append(cur)
@@ -353,17 +376,14 @@ def route_api_candles(environ, start_response):
         return [json.dumps({"error":"symbol required"}).encode()]
 
     try:
-        # Always fetch 1m; aggregate to 5m when asked.
         m1 = fetch_intraday_1m(symbol, date_ymd, tz_name)
 
-        # If a specific date was requested, clamp to that full local day in tz_name.
         if date_ymd and len(date_ymd) == 8 and date_ymd.isdigit():
             start_s, end_s = _day_bounds_utc(date_ymd, tz_name)
             m1 = [c for c in m1 if start_s <= int(c["time"]) < end_s]
 
         candles = m1 if interval == "1m" else _resample_5m(m1)
 
-        # Normalize types
         for c in candles:
             c["time"]   = int(c["time"])
             c["open"]   = float(c["open"])
@@ -402,13 +422,13 @@ def _collect_symbols_and_tags_from_trades(trades: list[dict]) -> tuple[str, str]
     def opts(all_label, values):
         out = [f'<option value="">{all_label}</option>']
         for v in sorted(values):
-            out.append(f'<option value="{v}">{v}</option>')
+            ev = escape(v, quote=True)
+            out.append(f'<option value="{ev}">{ev}</option>')
         return "\n".join(out)
 
     return opts("All Symbols", symbols), opts("All Tags", tags)
 
 def _trade_passes_filters(t: dict, symbol: str, tag: str, side: str, duration: str) -> bool:
-    # Empty string means no filter
     if symbol and (t.get("symbol") or "").strip() != symbol:
         return False
     if side and (t.get("side") or "").strip().lower() != side.lower():
@@ -428,9 +448,6 @@ def _trade_passes_filters(t: dict, symbol: str, tag: str, side: str, duration: s
     return True
 
 def _day_key_for_trade(t: dict) -> str:
-    """
-    Derive YYYY-MM-DD for a trade. Prefer first execution date; fallback to open_time date.
-    """
     execs = t.get("executions", [])
     if execs:
         first_dt = min(ex["datetime"] for ex in execs)
@@ -465,10 +482,17 @@ def _compute_day_stats(day_trades: list[dict]) -> dict:
     }
 
 def _row_for_day_table(t: dict) -> dict:
-    # Attempt to show a time—prefer first exec on that day
     time_str = ""
     if t.get("open_time"):
         time_str = t["open_time"].strftime("%I:%M:%S %p")
+    side = (t.get("side") or "").strip()
+    if not side:
+        try:
+            ex0 = min(t.get("executions", []), key=lambda e: e["datetime"]) if t.get("executions") else None
+            if ex0:
+                side = "Long" if str(ex0.get("Side","")).lower().startswith("b") else "Short"
+        except Exception:
+            pass
     try:
         ex0 = min(t.get("executions", []), key=lambda e: e["datetime"]) if t.get("executions") else None
         if ex0:
@@ -479,6 +503,7 @@ def _row_for_day_table(t: dict) -> dict:
     return {
         "id": t.get("id"),
         "symbol": t.get("symbol"),
+        "side": side,
         "time": time_str,
         "volume": int(t.get("volume") or 0),
         "execs": int(t.get("executions_count", len(t.get("executions", [])))),
@@ -487,21 +512,11 @@ def _row_for_day_table(t: dict) -> dict:
         "tags": t.get("tags") or [],
     }
 
-from zoneinfo import ZoneInfo  # already imported above
-
-DEFAULT_TZ = "America/New_York"  # keep this in one place
-
 # --- Realized P&L helpers for a day (market-local) ---
-
 def _per_exec_realized_deltas(fills_sorted: list[dict]) -> list[tuple[datetime, float]]:
-    """
-    Given executions for a single (Account, Symbol) in chronological order,
-    return a list of (local_dt, realized_delta) where realized_delta is the
-    realized P&L produced by that execution (fees subtracted). Uses avg-cost.
-    """
     deltas: list[tuple[datetime, float]] = []
-    pos = 0          # signed qty; +long, -short
-    avg = 0.0        # average cost of current signed position
+    pos = 0
+    avg = 0.0
 
     def side_sign(s: str) -> int:
         return 1 if (s or "").lower().startswith("b") else -1
@@ -514,19 +529,16 @@ def _per_exec_realized_deltas(fills_sorted: list[dict]) -> list[tuple[datetime, 
         realized = 0.0
 
         if pos == 0:
-            # opening
             pos = sgn * qty
             avg = px
             realized -= fee
         elif (pos > 0 and sgn > 0) or (pos < 0 and sgn < 0):
-            # add to same direction
             new_abs = abs(pos) + qty
             if new_abs:
                 avg = ((avg * abs(pos)) + (px * qty)) / new_abs
             pos += sgn * qty
             realized -= fee
         else:
-            # reducing/closing/reversing
             close_qty = min(qty, abs(pos))
             if pos > 0 and sgn < 0:
                 realized += (px - avg) * close_qty
@@ -538,7 +550,6 @@ def _per_exec_realized_deltas(fills_sorted: list[dict]) -> list[tuple[datetime, 
             if pos == 0:
                 avg = 0.0
             else:
-                # if reversed and we remain in the new direction, reset avg to this price
                 if (pos > 0 and sgn > 0) or (pos < 0 and sgn < 0):
                     avg = px
 
@@ -546,24 +557,17 @@ def _per_exec_realized_deltas(fills_sorted: list[dict]) -> list[tuple[datetime, 
 
     return deltas
 
-
-def _day_realized_series(the_day_iso: str) -> dict:
-    """
-    Build intraday realized P&L series for YYYY-MM-DD using LAST['fills'].
-    Filters by the *market-local* calendar day, groups by (Account, Symbol),
-    computes per-exec realized deltas, and cumulative-sums them.
-    Returns {"ts":[epoch_utc_seconds...], "cum":[...]}.
-    """
+def _day_realized_series(the_day_iso: str, fills: Iterable[dict] | None = None) -> dict:
     try:
         the_day = date.fromisoformat(the_day_iso)
     except Exception:
         return {"ts": [], "cum": []}
 
     market_tz = ZoneInfo(DEFAULT_TZ)
+    fills_iter = fills if fills is not None else (LAST.get("fills", []) or [])
 
-    # prepare fills with local market time
     candidates = []
-    for f in LAST.get("fills", []):
+    for f in fills_iter:
         dt = f["datetime"]
         if dt.tzinfo is None:
             dt_local = dt.replace(tzinfo=market_tz)
@@ -574,7 +578,6 @@ def _day_realized_series(the_day_iso: str) -> dict:
             g["_dt_local"] = dt_local
             candidates.append(g)
 
-    # group by (Account, Symbol) and process each stream chronologically
     from collections import defaultdict
     buckets = defaultdict(list)
     for g in candidates:
@@ -583,7 +586,6 @@ def _day_realized_series(the_day_iso: str) -> dict:
     for key in buckets:
         buckets[key].sort(key=lambda e: e["_dt_local"])
 
-    # stitch deltas across all streams and sort globally by time
     deltas_all: list[tuple[datetime, float]] = []
     for key, seq in buckets.items():
         deltas_all.extend(_per_exec_realized_deltas(seq))
@@ -592,7 +594,6 @@ def _day_realized_series(the_day_iso: str) -> dict:
     ts, cum = [], []
     running = 0.0
 
-    # start baseline (nicer chart)
     if deltas_all:
         first_ts = int(deltas_all[0][0].astimezone(timezone.utc).timestamp())
         ts.append(first_ts)
@@ -604,7 +605,6 @@ def _day_realized_series(the_day_iso: str) -> dict:
         cum.append(round(running, 2))
 
     if not ts:
-        # flat line at 0 if no executions
         anchor = datetime(the_day.year, the_day.month, the_day.day, 10, 0, tzinfo=market_tz)
         ts = [int(anchor.astimezone(timezone.utc).timestamp())]
         cum = [0.0]
@@ -612,54 +612,213 @@ def _day_realized_series(the_day_iso: str) -> dict:
     return {"ts": ts, "cum": cum}
 
 def _day_pl_series(the_day_iso: str) -> dict:
-    return _day_realized_series(the_day_iso)
+    return _day_realized_series(the_day_iso, LAST.get("fills", []))
+
+# ---------------------------- Rules storage ----------------------------
+RULES_DEFAULT = {
+    "defined_rules": (
+        "Keep the rules visible before each session. Stay within planned risk, trade only validated setups, "
+        "and pause when rules are broken more than twice."
+    ),
+    "items": [
+        {
+            "id": "risk_guardrails",
+            "title": "Protect capital first",
+            "category": "Risk",
+            "status": "Active",
+            "detail": "Max 1R per trade, stop for the day at -2R, and size using the planned stop distance.",
+        },
+        {
+            "id": "process_setup",
+            "title": "Trade only planned setups",
+            "category": "Process",
+            "status": "Focus",
+            "detail": "No impulsive entries. Write a brief plan before sending the order: thesis, level, stop, and target.",
+        },
+        {
+            "id": "mindset_opens",
+            "title": "Slow open, patient adds",
+            "category": "Mindset",
+            "status": "Active",
+            "detail": "Skip the first 3 minutes unless an A+ setup appears. Adds only if initial risk is paid.",
+        },
+    ],
+}
+
+def _normalize_rule_item(item: dict) -> dict | None:
+    if not isinstance(item, dict):
+        return None
+    title = (item.get("title") or "").strip()
+    if not title:
+        return None
+    rid = (item.get("id") or uuid.uuid4().hex)
+    category = (item.get("category") or "General").strip() or "General"
+    status = (item.get("status") or "Active").strip() or "Active"
+    detail = (item.get("detail") or "").strip()
+    return {"id": rid, "title": title, "category": category, "status": status, "detail": detail}
+
+def _normalize_rules_payload(raw: dict | None) -> dict:
+    if not isinstance(raw, dict):
+        return {"defined_rules": "", "items": []}
+    defined = str(raw.get("defined_rules") or "").strip()
+    items_in = raw.get("items")
+    if not isinstance(items_in, list):
+        items_in = []
+    items: list[dict] = []
+    for itm in items_in:
+        norm = _normalize_rule_item(itm)
+        if norm:
+            items.append(norm)
+    return {"defined_rules": defined, "items": items}
+
+def load_rules_data() -> dict:
+    data = None
+    if os.path.exists(RULES_PATH):
+        try:
+            with open(RULES_PATH, "r", encoding="utf-8") as fh:
+                stored = json.load(fh)
+            data = _normalize_rules_payload(stored)
+        except Exception:
+            data = None
+    if data is None:
+        data = _normalize_rules_payload(RULES_DEFAULT)
+    return data
+
+def save_rules_data(payload: dict) -> None:
+    tmp = RULES_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False, indent=2)
+    os.replace(tmp, RULES_PATH)
+
+# ---------------------------- Checklist storage ----------------------------
+CHECKLIST_TEMPLATE = [
+    {"id": "plan_review", "label": "Reviewed premarket plan and levels"},
+    {"id": "risk", "label": "Respected position size and max daily loss"},
+    {"id": "setups_only", "label": "Traded only A+ setups (no impulse trades)"},
+    {"id": "stops", "label": "Executed stops without hesitation"},
+    {"id": "journal", "label": "Captured notes/screenshots after trades"},
+]
+CHECKLIST_DEFAULT = {"entries": []}
+
+def _win_rates_by_day() -> dict[str, float]:
+    trades = LAST.get("trades", []) or []
+    by_day = _group_trades_by_day(trades)
+    out: dict[str, float] = {}
+    for d, arr in by_day.items():
+        stats = _compute_day_stats(arr)
+        out[d] = float(stats.get("win_rate", 0.0) or 0.0)
+    return out
+
+def _pnl_by_day() -> dict[str, float]:
+    fills = LAST.get("fills", []) or []
+    dm = _daily_map_from_fills(fills)
+    return {d.isoformat(): float(info.get("pl", 0.0) or 0.0) for d, info in dm.items()}
+
+def _normalize_checklist_entry(raw: dict | None) -> dict:
+    if not isinstance(raw, dict):
+        return {"date": "", "checks": [], "win_pct": 0.0, "breaches": 0, "notes": "", "quality": "Some trading opportunities", "score": 0.0, "completed": False, "pnl": None}
+    ds = (raw.get("date") or "").strip()
+    try:
+        d = date.fromisoformat(ds)
+        dstr = d.isoformat()
+    except Exception:
+        dstr = ""
+
+    checks_in = raw.get("checks")
+    if not isinstance(checks_in, list):
+        checks_in = []
+    checks: list[dict] = []
+    seen_ids: set[str] = set()
+
+    def _add_check(item_id: str, label: str, checked: bool):
+        if not item_id:
+            return
+        if item_id in seen_ids:
+            return
+        seen_ids.add(item_id)
+        checks.append({"id": item_id, "label": label or item_id, "checked": bool(checked)})
+
+    for itm in checks_in:
+        if not isinstance(itm, dict):
+            continue
+        iid = (itm.get("id") or itm.get("label") or "").strip()
+        label = (itm.get("label") or iid).strip()
+        _add_check(iid, label, bool(itm.get("checked")))
+
+    if not checks:
+        for t in CHECKLIST_TEMPLATE:
+            _add_check(t["id"], t["label"], False)
 
     try:
-        the_day = date.fromisoformat(the_day_iso)
+        win_raw = raw.get("win_pct", raw.get("rr", 0.0))
+        win_pct = round(float(win_raw or 0.0), 1)
     except Exception:
-        return {"ts": [], "cum": []}
+        win_pct = 0.0
+    try:
+        breaches = max(0, int(raw.get("breaches") or 0))
+    except Exception:
+        breaches = 0
+    notes = str(raw.get("notes") or "").strip()
+    pnl_val = raw.get("pnl", raw.get("net_pl", raw.get("pl")))
+    try:
+        pnl = round(float(pnl_val), 2)
+    except Exception:
+        pnl = None
+    quality_raw = str(raw.get("quality") or "Some trading opportunities").strip()
 
-    market_tz = ZoneInfo(DEFAULT_TZ)
+    def _map_quality(q: str) -> str:
+        v = (q or "").strip().lower()
+        if v in ("choppy", "tired", "emotional"):
+            return "Choppy"
+        if v in ("sharp", "nice", "amazing"):
+            return "Amazing"
+        if v in ("steady", "so so", "so-so", "neutral", "some trading opportunities"):
+            return "Some trading opportunities"
+        return q or "Some trading opportunities"
 
-    # Pick fills whose LOCAL (market_tz) calendar date == the_day
-    fills = []
-    for f in LAST.get("fills", []):
-        dt = f["datetime"]
-        # Ensure it's timezone-aware in market tz
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=market_tz)
-        else:
-            dt = dt.astimezone(market_tz)
-        if dt.date() == the_day:
-            g = dict(f)
-            g["_dt_local"] = dt
-            fills.append(g)
+    quality = _map_quality(quality_raw)
+    score = round((sum(1 for c in checks if c["checked"]) * 100.0) / max(len(checks), 1), 1)
+    completed = all(c["checked"] for c in checks) if checks else False
 
-    fills.sort(key=lambda x: x["_dt_local"])
+    return {
+        "date": dstr,
+        "checks": checks,
+        "win_pct": win_pct,
+        "breaches": breaches,
+        "notes": notes,
+        "quality": quality,
+        "pnl": pnl,
+        "score": score,
+        "completed": completed,
+    }
 
-    ts, cum = [], []
-    running = 0.0
+def load_checklist_data() -> dict:
+    data = {"entries": []}
+    if os.path.exists(CHECKLIST_PATH):
+        try:
+            with open(CHECKLIST_PATH, "r", encoding="utf-8") as fh:
+                stored = json.load(fh)
+            entries = stored.get("entries") if isinstance(stored, dict) else (stored if isinstance(stored, list) else [])
+            out: list[dict] = []
+            seen: set[str] = set()
+            for e in entries:
+                norm = _normalize_checklist_entry(e)
+                if norm["date"] and norm["date"] not in seen:
+                    out.append(norm)
+                    seen.add(norm["date"])
+            out.sort(key=lambda x: x["date"], reverse=True)
+            data["entries"] = out
+        except Exception:
+            data = {"entries": []}
+    if not isinstance(data.get("entries"), list):
+        data["entries"] = []
+    return data
 
-    # Optional: start with a baseline 0 at the first exec time (looks nicer)
-    if fills:
-        first_ts_utc = int(fills[0]["_dt_local"].astimezone(timezone.utc).timestamp())
-        ts.append(first_ts_utc)
-        cum.append(0.0)
-
-    for f in fills:
-        running += float(f.get("NetPL", 0.0))
-        ts_utc = int(f["_dt_local"].astimezone(timezone.utc).timestamp())
-        ts.append(ts_utc)
-        cum.append(round(running, 2))
-
-    # Guarantee two points for Plotly even if no fills
-    if not ts:
-        # Place a single point at 10:00 ET just to render a flat 0 line
-        anchor = datetime(the_day.year, the_day.month, the_day.day, 10, 0, tzinfo=market_tz)
-        ts = [int(anchor.astimezone(timezone.utc).timestamp())]
-        cum = [0.0]
-
-    return {"ts": ts, "cum": cum}
+def save_checklist_data(payload: dict) -> None:
+    tmp = CHECKLIST_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False, indent=2)
+    os.replace(tmp, CHECKLIST_PATH)
 
 # ---------------------------- WSGI app ----------------------------
 def app(environ, start_response):
@@ -766,7 +925,8 @@ def app(environ, start_response):
             "total_trades":0,"wins":0,"losses":0,"win_rate":0,
             "total_pl":0,"best":0,"worst":0,"avg_pl":0
         }
-        k = _dashboard_kpis()
+        metrics = daily_metrics_last_n(LAST["fills"], n=30)
+        trades_ext = _build_trades_ext_payload()
         mismatch = LAST["diag"]["mismatch"]
         banner = ""
         if abs(mismatch) > 0.01:
@@ -787,11 +947,15 @@ def app(environ, start_response):
             "LABELS": pack_json(LAST["labels"]),
             "DAILY":  pack_json(LAST["daily"]),
             "EQUITY": pack_json(LAST["equity"]),
-            "L30_LABELS": pack_json(k["L30"]["labels"]),
-            "L30_DPL":    pack_json(k["L30"]["daily_pl"]),
-            "L30_EQ":     pack_json(k["L30"]["equity"]),
-            "L30_VOL":    pack_json(k["L30"]["volume"]),
-            "L30_WIN":    pack_json(k["L30"]["winpct"]),
+            # shared widget data (same as /reports)
+            "SYM_DATA":   pack_json(LAST.get("sym") or []),
+            "SIDE_DATA":  pack_json(LAST.get("side") or []),
+            "L30_LABELS": pack_json(metrics["labels"]),
+            "L30_DPL":    pack_json(metrics["daily_pl"]),
+            "L30_EQ":     pack_json(metrics["equity"]),
+            "L30_VOL":    pack_json(metrics["volume"]),
+            "L30_WIN":    pack_json(metrics["winpct"]),
+            "TRADES_EXT": pack_json(trades_ext),
             "BANNER": banner
         }
         start_response("200 OK", [("Content-Type", "text/html; charset=utf-8")])
@@ -808,21 +972,29 @@ def app(environ, start_response):
         cal = calendar.Calendar(firstweekday=6)
         weeks = cal.monthdatescalendar(year, month)
 
+        # Precompute trade counts per day to reuse for the grid and weekly summary
+        trade_counts: dict[date, int] = {}
+        for d in dm.keys():
+            trade_counts[d] = len(trades_on_date(LAST.get("trades", []) or [], d))
+
         cells = []
         month_total = 0.0
-        for wk in weeks:
+        for idx, wk in enumerate(weeks, start=1):
+            week_cells = []
+            week_pl = 0.0
+            week_trades = 0
             for d in wk:
                 if d.month != month:
-                    cells.append(f"<div class='day mutedcell'><div class='num'>{d.day}</div></div>")
+                    week_cells.append(f"<div class='day mutedcell'><div class='num'>{d.day}</div></div>")
                     continue
                 info = dm.get(d, {"pl": 0.0, "count": 0})
                 pl = float(info["pl"])
-                gcount = len(trades_on_date(LAST.get("trades", []) or [], d))
+                gcount = trade_counts.get(d, 0)
                 cls = "pl pos" if pl > 0 else ("pl neg" if pl < 0 else "pl")
                 amt = f"${pl:.2f}"
                 trades_txt = f"{gcount} trade{'s' if gcount != 1 else ''}"
                 href = f"/trades/day?date={d.isoformat()}"
-                cells.append(
+                week_cells.append(
                     f"<a class='day link-block' href='{href}'>"
                     f"<div class='num'>{d.day}</div>"
                     f"<div class='{cls}'>{amt}</div>"
@@ -830,6 +1002,19 @@ def app(environ, start_response):
                     f"</a>"
                 )
                 month_total += pl
+                week_pl += pl
+                week_trades += gcount
+
+            label = f"Week {idx}"
+            wcls = "pos" if week_pl > 0 else ("neg" if week_pl < 0 else "")
+            week_cells.append(
+                f"<div class='week-total'>"
+                f"<div class='week-title'>{label}</div>"
+                f"<div class='week-amount {wcls}'>${week_pl:.2f}</div>"
+                f"<div class='week-trades'>{week_trades} trade{'s' if week_trades != 1 else ''}</div>"
+                f"</div>"
+            )
+            cells.extend(week_cells)
 
         prev_y, prev_m, next_y, next_m = _month_nav(year, month)
         ctx = {
@@ -887,14 +1072,16 @@ def app(environ, start_response):
     # reports
     if path == "/reports" and method == "GET":
         metrics = daily_metrics_last_n(LAST["fills"], n=30)
+        trades_ext = _build_trades_ext_payload()
         ctx = {
-            "SYM_DATA": pack_json(LAST["sym"] or []),
-            "SIDE_DATA": pack_json(LAST["side"] or []),
+            "SYM_DATA":   pack_json(LAST["sym"] or []),
+            "SIDE_DATA":  pack_json(LAST["side"] or []),
             "L30_LABELS": pack_json(metrics["labels"]),
             "L30_DPL":    pack_json(metrics["daily_pl"]),
             "L30_EQ":     pack_json(metrics["equity"]),
             "L30_VOL":    pack_json(metrics["volume"]),
             "L30_WIN":    pack_json(metrics["winpct"]),
+            "TRADES_EXT": pack_json(trades_ext),
         }
         start_response("200 OK", [("Content-Type", "text/html; charset=utf-8")])
         return [render("reports.html", **ctx)]
@@ -950,7 +1137,13 @@ def app(environ, start_response):
 
         TABLE = "".join(row_html(t) for t in rows) or "<tr><td colspan='7'>No trades. Upload a file first.</td></tr>"
         start_response("200 OK", [("Content-Type", "text/html; charset=utf-8")])
-        return [render("trades_list.html", SYMBOL=escape(symbol), FROM=escape(dfrom), TO=escape(dto), TABLE=TABLE)]
+        return [render(
+            "trades_list.html",
+            SYMBOL=escape(symbol),
+            FROM=escape(dfrom),
+            TO=escape(dto),
+            TABLE=TABLE
+        )]
 
     # trades for a specific day
     if path == "/trades/day" and method == "GET":
@@ -1021,13 +1214,13 @@ def app(environ, start_response):
         filtered = [t for t in trades if _trade_passes_filters(t, symbol, tag, side, duration)]
         by_day = _group_trades_by_day(filtered)
 
-        all_days = sorted(by_day.keys(), reverse=True)  # latest first
+        all_days = sorted(by_day.keys(), reverse=True)
         total_days = len(all_days)
         pages = max(1, math.ceil(total_days / per_page))
         if page > pages: page = pages
-        start = (page - 1) * per_page
-        end = start + per_page
-        days_slice = all_days[start:end]
+        start_i = (page - 1) * per_page
+        end_i = start_i + per_page
+        days_slice = all_days[start_i:end_i]
 
         out = []
         for d in days_slice:
@@ -1094,6 +1287,98 @@ def app(environ, start_response):
         start_response("200 OK", [("Content-Type", "application/json; charset=utf-8")])
         return [json.dumps({"ok": True}).encode("utf-8")]
 
+    # Rules page
+    if path == "/rules" and method == "GET":
+        start_response("200 OK", [("Content-Type", "text/html; charset=utf-8")])
+        return [render("rules.html")]
+
+    # API: Rules board (GET/POST)
+    if path == "/api/rules" and method == "GET":
+        payload = load_rules_data()
+        start_response("200 OK", [("Content-Type", "application/json; charset=utf-8")])
+        return [json.dumps(payload, ensure_ascii=False).encode("utf-8")]
+
+    if path == "/api/rules" and method == "POST":
+        try:
+            size = int(environ.get("CONTENT_LENGTH") or 0)
+        except Exception:
+            size = 0
+        body = (environ["wsgi.input"].read(size) if size > 0 else b"").decode("utf-8", "ignore")
+        incoming = {}
+        try:
+            incoming = json.loads(body) if body else {}
+        except Exception:
+            incoming = {}
+
+        payload = _normalize_rules_payload(incoming)
+        try:
+            save_rules_data(payload)
+        except Exception as e:
+            start_response("500 Internal Server Error", [("Content-Type", "application/json; charset=utf-8")])
+            return [json.dumps({"error": str(e)}).encode("utf-8")]
+
+        start_response("200 OK", [("Content-Type", "application/json; charset=utf-8")])
+        return [json.dumps({"ok": True}).encode("utf-8")]
+
+    # API: Rules checklist (GET/POST)
+    if path == "/api/rules/checklist" and method == "GET":
+        payload = load_checklist_data()
+        pnl_map = _pnl_by_day()
+        entries = []
+        for e in payload.get("entries", []):
+            row = dict(e)
+            if (row.get("pnl") is None or row.get("pnl") == "") and row.get("date") in pnl_map:
+                row["pnl"] = pnl_map[row["date"]]
+            entries.append(row)
+        resp = {
+            "template": CHECKLIST_TEMPLATE,
+            "entries": entries,
+            "today": date.today().isoformat(),
+            "win_rates": _win_rates_by_day(),
+            "pnl_by_day": pnl_map,
+        }
+        start_response("200 OK", [("Content-Type", "application/json; charset=utf-8")])
+        return [json.dumps(resp, ensure_ascii=False).encode("utf-8")]
+
+    if path == "/api/rules/checklist" and method == "POST":
+        try:
+            size = int(environ.get("CONTENT_LENGTH") or 0)
+        except Exception:
+            size = 0
+        body = (environ["wsgi.input"].read(size) if size > 0 else b"").decode("utf-8", "ignore")
+        incoming = {}
+        try:
+            incoming = json.loads(body) if body else {}
+        except Exception:
+            incoming = {}
+
+        entry = _normalize_checklist_entry(incoming)
+        if not entry["date"]:
+            start_response("400 Bad Request", [("Content-Type", "application/json; charset=utf-8")])
+            return [json.dumps({"error": "missing date"}).encode("utf-8")]
+
+        data = load_checklist_data()
+        entries = [e for e in data.get("entries", []) if e.get("date") != entry["date"]]
+        entries.append(entry)
+        entries.sort(key=lambda x: x.get("date",""), reverse=True)
+        try:
+            save_checklist_data({"entries": entries})
+        except Exception as e:
+            start_response("500 Internal Server Error", [("Content-Type", "application/json; charset=utf-8")])
+            return [json.dumps({"error": str(e)}).encode("utf-8")]
+
+        start_response("200 OK", [("Content-Type", "application/json; charset=utf-8")])
+        return [json.dumps({"ok": True, "entry": entry, "entries": entries}, ensure_ascii=False).encode("utf-8")]
+
+    if path == "/api/rules/checklist/clear" and method == "POST":
+        try:
+            save_checklist_data({"entries": []})
+            start_response("200 OK", [("Content-Type", "application/json; charset=utf-8")])
+            return [b'{"ok":true}']
+        except Exception as e:
+            start_response("500 Internal Server Error", [("Content-Type", "application/json; charset=utf-8")])
+            return [json.dumps({"error": str(e)}).encode("utf-8")]
+
     # single trade detail
     if path == "/trade" and method == "GET":
         qs = parse_qs(environ.get("QUERY_STRING") or "")
@@ -1118,75 +1403,76 @@ def app(environ, start_response):
         account = executions[0].get("Account", "") if executions else ""
         ex_count = len(executions)
 
-        # JSON markers for chart
         MARKET_TZ = ZoneInfo(DEFAULT_TZ)
-        ex_list = []
-        for e in executions:
-            dt_local = e["datetime"].replace(tzinfo=MARKET_TZ)
-            ts_utc = int(dt_local.astimezone(timezone.utc).timestamp())
-            ex_list.append({
-                "ts": ts_utc,
-                "side": e["Side"],
-                "qty": int(e["Quantity"]),
-                "price": float(e["Price"])
-            })
-        EXECS_JSON = json.dumps(ex_list, ensure_ascii=False)
-        trade_day_ymd = (trade["open_time"]).strftime("%Y%m%d")
-
-        # ---------- Executions table (PER-EXEC P/L) ----------
-        # running position state for avg-cost math
-        pos = 0      # signed position (+ long, - short)
-        avg = 0.0    # average cost for current signed position
-
         def sgn(x: str) -> int:
             return 1 if x.lower().startswith("b") else -1
 
-        def realized_for_exec(e: dict) -> tuple[float, int]:
+        def compute_exec_pnl(exec_list: list[dict]) -> list[dict]:
             """
-            Per-execution realized P/L (fee-adjusted) and position after this fill.
+            Walk executions in order and emit realized PnL, cumulative PnL, and position after each fill.
             """
-            nonlocal pos, avg
-            qty = int(e["Quantity"])
-            px  = float(e["Price"])
-            fee = float(e["Fees"])
-            side = sgn(e["Side"])
+            pos = 0
+            avg = 0.0
+            running = 0.0
+            out: list[dict] = []
 
-            realized = 0.0
+            for e in exec_list:
+                dt_local = e["datetime"].replace(tzinfo=MARKET_TZ)
+                ts_utc = int(dt_local.astimezone(timezone.utc).timestamp())
 
-            if pos == 0:
-                # opening -> no realized, only fee
-                pos = side * qty
-                avg = px
-                realized -= fee
-            elif (pos > 0 and side > 0) or (pos < 0 and side < 0):
-                # add to same direction -> no realized, only fee; update avg
-                new_abs = abs(pos) + qty
-                if new_abs:
-                    avg = ((avg * abs(pos)) + (px * qty)) / new_abs
-                pos += side * qty
-                realized -= fee
-            else:
-                # reduce/close/reverse
-                close_qty = min(qty, abs(pos))
-                if pos > 0 and side < 0:
-                    realized += (px - avg) * close_qty
-                elif pos < 0 and side > 0:
-                    realized += (avg - px) * close_qty
-                realized -= fee
+                qty = int(e["Quantity"])
+                px = float(e["Price"])
+                fee = float(e["Fees"])
+                side_sgn = sgn(e["Side"])
 
-                pos += side * qty  # may cross zero
+                realized = 0.0
 
                 if pos == 0:
-                    avg = 0.0
+                    pos = side_sgn * qty
+                    avg = px
+                    realized -= fee
+                elif (pos > 0 and side_sgn > 0) or (pos < 0 and side_sgn < 0):
+                    new_abs = abs(pos) + qty
+                    if new_abs:
+                        avg = ((avg * abs(pos)) + (px * qty)) / new_abs
+                    pos += side_sgn * qty
+                    realized -= fee
                 else:
-                    # if reversed and remainder stays in the new direction, set new avg to exec price
-                    if (pos > 0 and side > 0) or (pos < 0 and side < 0):
-                        avg = px
+                    close_qty = min(qty, abs(pos))
+                    if pos > 0 and side_sgn < 0:
+                        realized += (px - avg) * close_qty
+                    elif pos < 0 and side_sgn > 0:
+                        realized += (avg - px) * close_qty
+                    realized -= fee
 
-            return realized, pos
+                    pos += side_sgn * qty
+                    if pos == 0:
+                        avg = 0.0
+                    else:
+                        if (pos > 0 and side_sgn > 0) or (pos < 0 and side_sgn < 0):
+                            avg = px
 
-        def ex_row(e: dict) -> str:
-            realized, pos_after = realized_for_exec(e)
+                running += realized
+                out.append({
+                    "ts": ts_utc,
+                    "side": e["Side"],
+                    "qty": qty,
+                    "price": px,
+                    "fees": fee,
+                    "realized": round(realized, 2),
+                    "cum": round(running, 2),
+                    "pos_after": pos,
+                })
+
+            return out
+
+        ex_stats = compute_exec_pnl(executions)
+        EXECS_JSON = json.dumps(ex_stats, ensure_ascii=False)
+        trade_day_ymd = (trade["open_time"]).strftime("%Y%m%d")
+
+        def ex_row(e: dict, stats: dict) -> str:
+            realized = float(stats.get("realized", 0.0))
+            pos_after = int(stats.get("pos_after", 0))
             cls = "pos" if realized > 0 else ("neg" if realized < 0 else "")
             return (
                 "<tr>"
@@ -1203,7 +1489,7 @@ def app(environ, start_response):
                 "</tr>"
             )
 
-        EX_ROWS = "".join(ex_row(e) for e in executions)
+        EX_ROWS = "".join(ex_row(e, ex_stats[i] if i < len(ex_stats) else {}) for i, e in enumerate(executions))
 
         start_response("200 OK", [("Content-Type", "text/html; charset=utf-8")])
         return [render("trade_detail.html",
@@ -1226,11 +1512,8 @@ _loaded = store_load()
 if _loaded:
     update_last(_loaded)
 
-# --- at bottom of server.py ---
 if __name__ == "__main__":
-    import os
-    port = int(os.environ.get("PORT", "8000"))
-    host = "0.0.0.0"  # important for Docker/Render
-    with make_server(host, port, app) as httpd:
-        print(f"Serving on http://{host}:{port}")
+    port = 8000
+    print(f"Serving on http://127.0.0.1:{port}")
+    with make_server("127.0.0.1", port, app) as httpd:
         httpd.serve_forever()

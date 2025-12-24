@@ -30,6 +30,13 @@ def _parse_datetime(s: str) -> datetime | None:
             pass
     return None
 
+def _norm_header_name(name: str) -> str:
+    """
+    Normalize column names (case/spacing/punctuation) so broker CSVs
+    with variations like "net pl", "Net P/L", "NETPL" all match.
+    """
+    return re.sub(r"[^a-z0-9]+", "", (name or "").strip().lower())
+
 _num_re = re.compile(r"-?\d+(?:\.\d+)?")
 
 def _num(x) -> float:
@@ -79,6 +86,7 @@ def parse_upload(file_bytes: bytes) -> List[Dict[str, Any]]:
         return []
 
     header = [h.strip() for h in rows[0]]
+    header_norm = [_norm_header_name(h) for h in header]
 
     # header aliases/canonicalization
     alias = {
@@ -92,11 +100,12 @@ def parse_upload(file_bytes: bytes) -> List[Dict[str, Any]]:
         "Account": {"Account", "Acct"},
         "Trading exchange": {"Trading exchange", "Exchange", "Venue", "Market"},
     }
+    alias_norm = {canon: {_norm_header_name(h) for h in alts} for canon, alts in alias.items()}
 
     idx: Dict[str, int] = {}
-    for canon, alts in alias.items():
-        for i, name in enumerate(header):
-            if name in alts:
+    for i, name_norm in enumerate(header_norm):
+        for canon, alts in alias_norm.items():
+            if name_norm in alts and canon not in idx:
                 idx[canon] = i
                 break
 
@@ -175,13 +184,17 @@ def build_trades(fills: list[dict]) -> list[dict]:
     fs = sorted(fills, key=lambda f: (f["date"], f["datetime"], f["Symbol"], f.get("Account","")))
     trades: list[dict] = []
     state: dict[tuple[date,str,str], dict] = {}  # (date, symbol, account) -> {pos:int, trade:dict|None}
+    next_id = 1
 
     def sgn(side: str) -> int:
         return 1 if side.lower().startswith("b") else -1
 
     def new_trade(first: dict) -> dict:
+        nonlocal next_id
+        tid = f"T{next_id:06d}"
+        next_id += 1
         return {
-            "id": f"T{len(trades)+1:06d}",
+            "id": tid,
             "symbol": first["Symbol"],
             "account": first.get("Account",""),
             "date": first["date"],

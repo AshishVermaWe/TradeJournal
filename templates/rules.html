@@ -1,0 +1,1819 @@
+<section class="page rules-page">
+  <div class="rules-hero">
+    <div class="hero-copy">
+      <div class="eyebrow">Discipline board</div>
+      <h1>Rules</h1>
+      <p class="muted">Keep the playbook visible, refine it often, and make every session start with a quick read-through.</p>
+      <div class="hero-tags">
+        <span class="chip accent">Risk aware</span>
+        <span class="chip">Process first</span>
+        <span class="chip">Calm execution</span>
+      </div>
+    </div>
+    <div class="hero-stats">
+      <div class="stat-card">
+        <div class="label">Active</div>
+        <div class="value" id="metricActive">0</div>
+        <div class="note">guardrails live</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Focus</div>
+        <div class="value" id="metricFocus">0</div>
+        <div class="note">pinned for today</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Total rules</div>
+        <div class="value" id="metricTotal">0</div>
+        <div class="note">in your playbook</div>
+      </div>
+      <div class="hero-action">
+        <button class="rules-btn primary" id="heroNewRuleBtn">Add rule</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="rules-tab active" data-tabtarget="rulesTab">Rules & Playbook</button>
+    <button class="rules-tab" data-tabtarget="trackingTab">Daily Tracking</button>
+    <button class="rules-tab" data-tabtarget="reportTab">Rules Report</button>
+  </div>
+
+  <div class="card define-card tab-section" data-tab="rulesTab">
+    <div class="panel-head">
+      <div>
+        <div class="eyebrow">Defined rules</div>
+        <h3 style="margin:4px 0;">Write the standards you will not break</h3>
+        <p class="muted" style="margin:0;">Use this block to capture your non-negotiables. Save to keep them pinned.</p>
+      </div>
+      <div class="btn-row">
+        <button class="rules-btn ghost" id="reloadRules">Reload</button>
+        <button class="rules-btn primary" id="saveRulesText">Save text</button>
+      </div>
+    </div>
+    <div id="definedDisplay" class="defined-display" contenteditable="true" role="textbox" aria-label="Defined rules"></div>
+    <textarea id="definedText" class="rules-textarea" hidden></textarea>
+  </div>
+
+  <div class="rules-layout tab-section" data-tab="rulesTab">
+    <div class="card board">
+      <div class="board-head">
+        <div>
+          <div class="eyebrow">Rule board</div>
+          <h3 style="margin:4px 0;">Working rules</h3>
+          <p class="muted" style="margin:0;">Filter by category or status to stay focused.</p>
+        </div>
+        <div class="board-filters">
+          <label class="filter">
+            <span>Category</span>
+            <select id="categoryFilter" class="input"></select>
+          </label>
+          <label class="filter">
+            <span>Status</span>
+            <select id="statusFilter" class="input">
+              <option value="">All</option>
+              <option value="Active">Active</option>
+              <option value="Focus">Focus</option>
+              <option value="Paused">Paused</option>
+            </select>
+          </label>
+          <button class="rules-btn ghost" id="newRuleBtn">New rule</button>
+          <div class="rule-pager" id="rulePager">
+            <button class="rules-btn ghost" id="prevRulePage" aria-label="Previous page">Prev</button>
+            <span id="rulePageMeta" class="muted" style="font-size:12px;">Page 1</span>
+            <button class="rules-btn ghost" id="nextRulePage" aria-label="Next page">Next</button>
+          </div>
+        </div>
+      </div>
+      <div id="rulesGrid" class="rule-grid"></div>
+    </div>
+
+    <div class="side-column">
+      <div class="card focus-card">
+        <div class="panel-head" style="margin-bottom:6px;">
+          <div>
+            <div class="eyebrow">Today's focus</div>
+            <h3 style="margin:4px 0;">Stay honest mid-session</h3>
+          </div>
+        </div>
+        <div id="focusList" class="focus-list"></div>
+      </div>
+
+      <div class="card composer" id="composerCard">
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow" id="composerState">Add rule</div>
+            <h3 style="margin:4px 0;">Compose a new rule</h3>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label class="muted">Title</label>
+          <input id="ruleTitle" class="input" placeholder="Example: Risk a maximum of 1R per idea">
+
+          <label class="muted">Category</label>
+          <select id="ruleCategory" class="input">
+            <option>Risk</option>
+            <option>Process</option>
+            <option>Mindset</option>
+            <option>Playbook</option>
+            <option>Routine</option>
+          </select>
+
+          <label class="muted">Status</label>
+          <select id="ruleStatus" class="input">
+            <option>Active</option>
+            <option>Focus</option>
+            <option>Paused</option>
+          </select>
+
+          <label class="muted">Notes</label>
+          <textarea id="ruleDetail" class="input" rows="4" placeholder="Add context, exceptions, or reminders for this rule."></textarea>
+
+          <div class="form-actions">
+            <button class="rules-btn ghost" id="cancelEdit">Clear</button>
+            <button class="rules-btn primary" id="saveRuleBtn">Save rule</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+
+  <div class="card checklist-card tab-section" data-tab="trackingTab">
+    <div class="panel-head checklist-head">
+      <div>
+        <div class="eyebrow">Daily strategy checklist</div>
+        <h3 style="margin:4px 0;">Did I follow my playbook today?</h3>
+        <p class="muted" style="margin:0;">Tick the habits, surface Win%, and keep a record for every session.</p>
+      </div>
+      <div class="check-head-actions">
+        <label class="filter">
+          <span>Day</span>
+          <input id="checkDate" type="date" class="input">
+        </label>
+        <div class="score-stack">
+          <div id="checkScore" class="score-pill">0% complete</div>
+          <div id="checkWinPreview" class="score-pill soft">Win% --</div>
+        </div>
+        <button class="rules-btn primary" id="saveChecklistBtn">Save day</button>
+      </div>
+    </div>
+
+    <div id="checklistItems" class="checklist-items"></div>
+
+    <div class="check-metrics">
+      <div class="metric">
+        <label class="muted">Win % (from trades)</label>
+        <input id="checkWinPct" type="number" step="0.1" min="0" max="100" class="input" placeholder="auto from journal" readonly>
+      </div>
+      <div class="metric">
+        <label class="muted">Rule breaks</label>
+        <input id="checkBreaches" type="number" min="0" step="1" class="input" value="0">
+      </div>
+      <div class="metric">
+        <label class="muted">Day quality</label>
+        <select id="checkQuality" class="input">
+          <option>Choppy</option>
+          <option>Some trading opportunities</option>
+          <option>Amazing</option>
+        </select>
+      </div>
+    </div>
+
+    <textarea id="checkNotes" class="input check-notes" rows="3" placeholder="Notes on discipline, execution, and win rate for the session."></textarea>
+  </div>
+
+  <div class="card history-card tab-section" data-tab="trackingTab">
+    <div class="panel-head">
+      <div>
+        <div class="eyebrow">Checklist history</div>
+        <h3 style="margin:4px 0;">Track discipline over time</h3>
+        <p class="muted" style="margin:0;">See past days, completion %, and win rate in one spot.</p>
+      </div>
+      <div class="history-metrics">
+        <div class="mini-stat">
+          <div class="label">Avg complete</div>
+          <div class="value" id="avgComplete">--%</div>
+        </div>
+        <div class="mini-stat">
+          <div class="label">Avg Win%</div>
+          <div class="value" id="avgWin">--</div>
+        </div>
+        <div class="mini-stat">
+          <div class="label">Streak</div>
+          <div class="value" id="streakDays">0</div>
+          <div class="note">days &gt;= 80%</div>
+        </div>
+        <button class="rules-btn ghost" id="clearHistoryBtn">Clear history</button>
+      </div>
+    </div>
+    <div id="checkHistory" class="history-grid"></div>
+  </div>
+
+  <div class="report-stack tab-section" data-tab="reportTab">
+    <div class="card report-card">
+      <div class="panel-head">
+        <div>
+          <div class="eyebrow">Rules report</div>
+          <h3 style="margin:4px 0;">Average PnL by day quality</h3>
+          <p class="muted" style="margin:0;">Uses daily tracking entries and the linked PnL per day.</p>
+        </div>
+      </div>
+      <div id="qualityReportGrid" class="report-grid"></div>
+      <div class="muted report-footnote">Averages include days with recorded PnL in the checklist history.</div>
+    </div>
+
+    <div class="card report-card">
+      <div class="panel-head">
+        <div>
+          <div class="eyebrow">PnL totals</div>
+          <h3 style="margin:4px 0;">Total PnL by day quality</h3>
+          <p class="muted" style="margin:0;">Sum of daily PnL grouped by quality.</p>
+        </div>
+      </div>
+      <div id="qualityTotalGrid" class="report-grid"></div>
+      <div class="muted report-footnote">Totals include days with recorded PnL in the checklist history.</div>
+    </div>
+
+    <div class="card report-card">
+      <div class="panel-head">
+        <div>
+          <div class="eyebrow">Discipline vs outcome</div>
+          <h3 style="margin:4px 0;">Checklist score vs daily PnL</h3>
+          <p class="muted" style="margin:0;">See how discipline scores track with daily results.</p>
+        </div>
+      </div>
+      <div id="disciplineScatter" class="report-chart"></div>
+    </div>
+
+    <div class="card report-card">
+      <div class="panel-head">
+        <div>
+          <div class="eyebrow">Rolling trends</div>
+          <h3 style="margin:4px 0;">7-day & 30-day rolling averages</h3>
+          <p class="muted" style="margin:0;">Smoothed view of PnL and checklist score momentum.</p>
+        </div>
+      </div>
+      <div class="report-chart-grid">
+        <div>
+          <div class="report-subtitle">Rolling PnL</div>
+          <div id="rollingPnlChart" class="report-chart compact"></div>
+        </div>
+        <div>
+          <div class="report-subtitle">Rolling checklist score</div>
+          <div id="rollingScoreChart" class="report-chart compact"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="report-row">
+      <div class="card report-card">
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow">Rule breaks</div>
+            <h3 style="margin:4px 0;">Breach impact</h3>
+            <p class="muted" style="margin:0;">Average PnL by number of breaks.</p>
+          </div>
+        </div>
+        <div id="breachReportGrid" class="report-grid"></div>
+      </div>
+
+      <div class="card report-card">
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow">Completion</div>
+            <h3 style="margin:4px 0;">Score buckets</h3>
+            <p class="muted" style="margin:0;">Average PnL and Win% by discipline score.</p>
+          </div>
+        </div>
+        <div id="completionReportGrid" class="report-grid"></div>
+      </div>
+    </div>
+
+    <div class="report-row">
+      <div class="card report-card">
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow">Quality mix</div>
+            <h3 style="margin:4px 0;">Day quality distribution</h3>
+            <p class="muted" style="margin:0;">Counts and average checklist scores per quality.</p>
+          </div>
+        </div>
+        <div id="qualityDistGrid" class="report-grid"></div>
+      </div>
+
+      <div class="card report-card">
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow">Extremes</div>
+            <h3 style="margin:4px 0;">Best and worst days</h3>
+            <p class="muted" style="margin:0;">Top and bottom PnL days with notes.</p>
+          </div>
+        </div>
+        <div class="report-lists">
+          <div id="bestDaysList" class="report-list"></div>
+          <div id="worstDaysList" class="report-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="rulesToast" class="rules-toast" hidden>Saved</div>
+</section>
+
+<style>
+  .rules-page{display:flex;flex-direction:column;gap:14px;}
+  .tab-bar{
+    display:inline-flex;
+    gap:6px;
+    background:#fff;
+    padding:6px;
+    border-radius:12px;
+    border:1px solid var(--border);
+    box-shadow:0 4px 14px rgba(15,23,42,0.08);
+    width:max-content;
+  }
+  .rules-tab{
+    border:1px solid transparent;
+    background:transparent;
+    padding:10px 14px;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:700;
+    color:var(--muted);
+    transition:all .2s ease;
+  }
+  .rules-tab.active{
+    background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent-2) 70%, var(--accent) 30%));
+    color:#0f172a;
+    border-color:color-mix(in srgb, var(--accent) 40%, transparent);
+    box-shadow:0 6px 16px rgba(15,23,42,0.12);
+  }
+  .tab-section{display:block;}
+  .tab-section.hidden{display:none;}
+  .rules-hero{
+    display:grid;
+    grid-template-columns: minmax(280px, 1.1fr) minmax(260px, 0.9fr);
+    gap:16px;
+    background:
+      radial-gradient(140% 120% at 0% 0%, rgba(0,200,5,0.18), transparent 38%),
+      radial-gradient(90% 90% at 90% 10%, rgba(255,255,255,0.08), transparent 55%),
+      linear-gradient(135deg, color-mix(in srgb, var(--card) 92%, var(--accent) 8%), var(--card));
+    border:1px solid color-mix(in srgb, var(--border) 80%, var(--accent) 10%);
+    border-radius:16px;
+    padding:18px;
+    box-shadow:0 16px 44px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .hero-copy h1{margin:2px 0 6px;font-size:28px;}
+  .hero-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:6px 10px;border-radius:999px;
+    border:1px solid var(--border);color:var(--fg);font-size:12px;
+    background: rgba(255,255,255,0.02);
+  }
+  .chip.accent{border-color:var(--accent);color:var(--fg);background:color-mix(in srgb, var(--accent) 18%, transparent);}
+  .hero-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:stretch;}
+  .hero-action{display:flex;align-items:center;justify-content:flex-end;}
+  .hero-action .rules-btn{width:100%;}
+  .stat-card{
+    background: var(--card);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:12px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02), 0 6px 24px rgba(0,0,0,0.18);
+  }
+  .stat-card .label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px;}
+  .stat-card .value{font-size:24px;font-weight:800;margin:6px 0;}
+  .stat-card .note{color:var(--muted);font-size:12px;}
+
+  .card{
+    background: linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, rgba(255,255,255,0.02)), var(--card));
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:16px;
+    box-shadow:0 10px 28px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+  .panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+  .btn-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .rules-btn{
+    border:1px solid var(--border);
+    background:color-mix(in srgb, var(--card) 80%, var(--accent) 20%);
+    color:var(--fg);
+    padding:8px 12px;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:600;
+  }
+  .rules-btn.primary{background:var(--accent);color:#000;}
+  .rules-btn.ghost{background:transparent;}
+  .rules-btn:hover{filter:brightness(1.05);}
+
+  .rules-textarea{display:none;}
+  .defined-display{
+    margin-top:12px;
+    min-height:140px;
+    padding:6px 0;
+    border:none;
+    outline:none;
+    background:transparent;
+    color:var(--neg);
+    font-weight:700;
+    font-size:15px;
+    line-height:1.6;
+    white-space:pre-wrap;
+  }
+  .defined-display:empty:before{
+    content:"Type your non-negotiables here...";
+    color:var(--muted);
+    font-weight:600;
+  }
+
+  .rules-layout{display:grid;grid-template-columns:2fr 1fr;gap:14px;align-items:start;}
+  .board-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;}
+  .board-filters{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
+  .filter{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);}
+  .rule-pager{display:flex;align-items:center;gap:6px;}
+  .rule-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px;}
+  .rule-card{
+    background: color-mix(in srgb, var(--card) 90%, var(--bg) 10%);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:12px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    position:relative;
+  }
+  .rule-card h4{margin:0;font-size:16px;}
+  .rule-meta{display:flex;gap:8px;flex-wrap:wrap;}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 10px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    font-size:12px;color:var(--muted);
+    background: rgba(255,255,255,0.02);
+  }
+  .pill.status-active{border-color:var(--accent);color:var(--fg);background:color-mix(in srgb, var(--accent) 16%, transparent);}
+  .pill.status-focus{border-color:var(--brand);color:var(--brand-contrast);background:color-mix(in srgb, var(--brand) 20%, transparent);}
+  .pill.status-paused{border-color:var(--border);color:var(--muted);}
+
+  .rule-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .rule-actions button{
+    padding:6px 10px;border-radius:8px;
+    border:1px solid var(--border);
+    background:var(--bg);
+    color:var(--fg);
+    cursor:pointer;
+  }
+  .rule-actions button:hover{border-color:var(--accent);}
+  .rule-desc{color:var(--muted);line-height:1.5;font-size:13px;}
+
+  .side-column{display:flex;flex-direction:column;gap:12px;}
+  .focus-card{background: color-mix(in srgb, var(--card) 92%, var(--accent) 8%);box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);}
+  .focus-list{display:flex;flex-direction:column;gap:10px;}
+  .focus-item{
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .focus-item .title{font-weight:700;}
+  .focus-item .meta{display:flex;gap:8px;flex-wrap:wrap;}
+  .empty-card{
+    border:1px dashed var(--border);
+    padding:16px;
+    border-radius:10px;
+    text-align:center;
+    color:var(--muted);
+  }
+  .form-grid{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+  .form-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;}
+
+  .rules-toast{
+    position:fixed;
+    bottom:20px;right:20px;
+    background:var(--card);
+    border:1px solid var(--border);
+    color:var(--fg);
+    padding:10px 14px;
+    border-radius:8px;
+    box-shadow:0 12px 30px rgba(0,0,0,0.35);
+  }
+  .rules-toast.error{border-color:var(--neg);color:var(--neg);}
+
+  .checklist-card{display:flex;flex-direction:column;gap:12px;}
+  .check-head-actions{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;}
+  .score-stack{display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
+  .score-pill{
+    padding:8px 12px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background: color-mix(in srgb, var(--accent) 16%, var(--card));
+    color: var(--fg);
+    font-weight:700;
+    min-width:120px;
+    text-align:center;
+  }
+  .score-pill.soft{
+    background: color-mix(in srgb, var(--card) 90%, var(--bg) 10%);
+    color: var(--muted);
+  }
+  .checklist-items{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap:10px;
+  }
+  .check-item{
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px;
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+    background: color-mix(in srgb, var(--card) 92%, var(--bg) 8%);
+  }
+  .check-item input[type="checkbox"]{
+    width:18px;height:18px;margin-top:2px;
+    accent-color: var(--accent);
+    cursor:pointer;
+  }
+  .check-item .title{font-weight:700;}
+
+  .check-metrics{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap:10px;
+  }
+  .metric{display:flex;flex-direction:column;gap:6px;}
+  .check-notes{
+    background:var(--bg);
+    min-height:110px;
+    resize:vertical;
+    margin-top:4px;
+  }
+
+  .history-metrics{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  .mini-stat{
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background: color-mix(in srgb, var(--card) 92%, var(--bg) 8%);
+    min-width:120px;
+  }
+  .mini-stat .label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px;}
+  .mini-stat .value{font-weight:800;font-size:18px;}
+  .mini-stat .note{color:var(--muted);font-size:12px;}
+
+  .history-grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap:10px;
+    margin-top:10px;
+  }
+  .history-item{
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:12px 12px 14px;
+    background: color-mix(in srgb, var(--card) 90%, var(--bg) 10%);
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+  .history-item .top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;}
+  .badge{
+    padding:4px 8px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    font-size:12px;
+    background:rgba(255,255,255,0.04);
+  }
+  .badge.pos{color:var(--pos);border-color:color-mix(in srgb, var(--pos) 80%, var(--border));}
+  .badge.neg{color:var(--neg);border-color:color-mix(in srgb, var(--neg) 80%, var(--border));}
+  .history-item .note{color:var(--muted);font-size:13px;line-height:1.4;}
+  .quality-line{margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .quality-value{color:var(--neg);font-weight:700;}
+  .pnl-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:4px 10px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background: color-mix(in srgb, var(--card) 90%, var(--bg) 10%);
+    font-weight:700;
+    font-size:12px;
+  }
+  .pnl-pill.pos{color:var(--pos);border-color:color-mix(in srgb, var(--pos) 70%, var(--border));background:color-mix(in srgb, var(--pos) 12%, transparent);}
+  .pnl-pill.neg{color:var(--neg);border-color:color-mix(in srgb, var(--neg) 70%, var(--border));background:color-mix(in srgb, var(--neg) 12%, transparent);}
+  .pnl-pill.flat{color:var(--muted);}
+  .meter{
+    width:100%;
+    height:6px;
+    border-radius:999px;
+    background: color-mix(in srgb, var(--border) 80%, var(--bg));
+    overflow:hidden;
+  }
+  .meter > div{
+    height:100%;
+    background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 80%, var(--brand) 20%));
+    width:0%;
+    transition: width .2s ease;
+  }
+  .report-card{display:flex;flex-direction:column;gap:12px;}
+  .report-stack{display:flex;flex-direction:column;gap:12px;}
+  .report-row{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap:12px;
+  }
+  .report-grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap:12px;
+  }
+  .report-tile{
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:12px;
+    background: color-mix(in srgb, var(--card) 92%, var(--bg) 8%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .report-title{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px;}
+  .report-value{font-size:22px;font-weight:800;}
+  .report-value.pos{color:var(--pos);}
+  .report-value.neg{color:var(--neg);}
+  .report-value.flat{color:var(--muted);}
+  .report-meta{font-size:12px;color:var(--muted);}
+  .report-footnote{font-size:12px;margin-top:2px;}
+  .report-chart{
+    width:100%;
+    height:260px;
+  }
+  .report-chart.compact{height:220px;}
+  .report-chart-grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap:12px;
+  }
+  .report-subtitle{
+    font-size:12px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    margin-bottom:6px;
+  }
+  .report-lists{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap:12px;
+  }
+  .report-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .report-list-title{font-weight:800;}
+  .report-list-item{
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:10px;
+    background: color-mix(in srgb, var(--card) 92%, var(--bg) 8%);
+    display:flex;
+    gap:10px;
+    justify-content:space-between;
+    align-items:flex-start;
+  }
+  .report-list-main{display:flex;flex-direction:column;gap:6px;}
+  .report-list-date{font-weight:700;}
+  .report-list-meta{font-size:12px;color:var(--muted);}
+  .report-list-note{font-size:12px;color:var(--muted);line-height:1.4;}
+  .report-pill{
+    padding:4px 8px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    font-size:12px;
+    font-weight:700;
+    white-space:nowrap;
+    background: color-mix(in srgb, var(--card) 90%, var(--bg) 10%);
+  }
+  .report-pill.pos{color:var(--pos);border-color:color-mix(in srgb, var(--pos) 70%, var(--border));background:color-mix(in srgb, var(--pos) 12%, transparent);}
+  .report-pill.neg{color:var(--neg);border-color:color-mix(in srgb, var(--neg) 70%, var(--border));background:color-mix(in srgb, var(--neg) 12%, transparent);}
+  .report-pill.flat{color:var(--muted);}
+
+  @media (max-width: 980px){
+    .rules-layout{grid-template-columns:1fr;}
+    .rules-hero{grid-template-columns:1fr;}
+  }
+</style>
+
+<script>
+(function(){
+  const definedText = document.getElementById('definedText');
+  const rulesGrid = document.getElementById('rulesGrid');
+  const focusList = document.getElementById('focusList');
+  const toast = document.getElementById('rulesToast');
+  const categoryFilter = document.getElementById('categoryFilter');
+  const statusFilter = document.getElementById('statusFilter');
+  const ruleTitle = document.getElementById('ruleTitle');
+  const ruleCategory = document.getElementById('ruleCategory');
+  const ruleStatus = document.getElementById('ruleStatus');
+  const ruleDetail = document.getElementById('ruleDetail');
+  const composerState = document.getElementById('composerState');
+  const definedDisplay = document.getElementById('definedDisplay');
+  const metrics = {
+    active: document.getElementById('metricActive'),
+    focus: document.getElementById('metricFocus'),
+    total: document.getElementById('metricTotal')
+  };
+  const rulePageMeta = document.getElementById('rulePageMeta');
+  const prevRulePage = document.getElementById('prevRulePage');
+  const nextRulePage = document.getElementById('nextRulePage');
+  const tabButtons = Array.from(document.querySelectorAll('.rules-tab'));
+  const tabSections = Array.from(document.querySelectorAll('.tab-section'));
+  const checkDate = document.getElementById('checkDate');
+  const checklistItems = document.getElementById('checklistItems');
+  const checkWinPct = document.getElementById('checkWinPct');
+  const checkBreaches = document.getElementById('checkBreaches');
+  const checkQuality = document.getElementById('checkQuality');
+  const checkNotes = document.getElementById('checkNotes');
+  const checkScore = document.getElementById('checkScore');
+  const checkWinPreview = document.getElementById('checkWinPreview');
+  const checkHistory = document.getElementById('checkHistory');
+  const qualityReportGrid = document.getElementById('qualityReportGrid');
+  const qualityTotalGrid = document.getElementById('qualityTotalGrid');
+  const disciplineScatter = document.getElementById('disciplineScatter');
+  const rollingPnlChart = document.getElementById('rollingPnlChart');
+  const rollingScoreChart = document.getElementById('rollingScoreChart');
+  const breachReportGrid = document.getElementById('breachReportGrid');
+  const completionReportGrid = document.getElementById('completionReportGrid');
+  const qualityDistGrid = document.getElementById('qualityDistGrid');
+  const bestDaysList = document.getElementById('bestDaysList');
+  const worstDaysList = document.getElementById('worstDaysList');
+  const avgComplete = document.getElementById('avgComplete');
+  const avgWin = document.getElementById('avgWin');
+  const streakDays = document.getElementById('streakDays');
+  const saveChecklistBtn = document.getElementById('saveChecklistBtn');
+  const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+  const heroNewRuleBtn = document.getElementById('heroNewRuleBtn');
+  const composerCard = document.getElementById('composerCard');
+
+  const defaultCategories = ["Risk","Process","Mindset","Playbook","Routine"];
+  const defaultQualityOptions = ["Choppy","Some trading opportunities","Amazing"];
+  let state = { defined_rules: "", items: [] };
+  let editingId = null;
+  let rulePage = 1;
+  const RULES_PER_PAGE = 9;
+
+  const clientChecklistTemplate = [
+    { id: "plan_review", label: "Reviewed premarket plan and levels" },
+    { id: "risk", label: "Respected position size and max daily loss" },
+    { id: "setups_only", label: "Traded only A+ setups (no impulse trades)" },
+    { id: "stops", label: "Executed stops without hesitation" },
+    { id: "journal", label: "Captured notes/screenshots after trades" },
+  ];
+  let checklistTemplate = [];
+  let checklistEntries = [];
+  let checklistEntry = null;
+  let checklistToday = "";
+  let checklistWinRates = {};
+  let checklistPnls = {};
+
+  const esc = (s="") => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&#39;");
+  const newId = () => (crypto.randomUUID ? crypto.randomUUID() : ("r_" + Math.random().toString(36).slice(2,10)));
+  const normalizeWinPct = (val) => {
+    if (val === "" || val === null || typeof val === "undefined") return "";
+    const num = Number(val);
+    if (Number.isNaN(num)) return "";
+    return Math.round(num * 10) / 10;
+  };
+  const normalizePnl = (val) => {
+    if (val === "" || val === null || typeof val === "undefined") return "";
+    const num = Number(val);
+    if (Number.isNaN(num)) return "";
+    return Math.round(num * 100) / 100;
+  };
+  const isNum = (val) => (typeof val === "number" && !Number.isNaN(val));
+  const formatCurrency = (val) => {
+    if (val === "" || val === null || typeof val === "undefined") return "--";
+    const num = Number(val);
+    if (Number.isNaN(num)) return "--";
+    const sign = num < 0 ? "-" : (num > 0 ? "+" : "");
+    return `${sign}$${Math.abs(num).toFixed(2)}`;
+  };
+  const formatPercent = (val) => (isNum(val) ? `${val.toFixed(1)}%` : "--");
+  const truncateText = (val, maxLen) => {
+    const text = (val || "").toString().trim();
+    if (!text) return "";
+    if (text.length <= maxLen) return text;
+    return text.slice(0, Math.max(0, maxLen - 3)) + "...";
+  };
+  const normalizeQualityValue = (q) => {
+    const raw = (q || "").toString().trim();
+    if (!raw) return "Some trading opportunities";
+    const v = raw.toLowerCase();
+    if (v === "choppy" || v === "tired" || v === "emotional") return "Choppy";
+    if (v === "sharp" || v === "nice" || v === "amazing") return "Amazing";
+    if (v === "so so" || v === "so-so" || v === "steady" || v === "neutral" || v === "some trading opportunities") return "Some trading opportunities";
+    return raw;
+  };
+  function winPctForDate(dstr){
+    if (!dstr || typeof checklistWinRates !== "object" || checklistWinRates === null) return "";
+    const raw = checklistWinRates[dstr];
+    if (raw === 0) return 0;
+    return normalizeWinPct(raw);
+  }
+  function pnlForDate(dstr){
+    if (!dstr || typeof checklistPnls !== "object" || checklistPnls === null) return "";
+    const raw = checklistPnls[dstr];
+    if (raw === 0) return 0;
+    return normalizePnl(raw);
+  }
+  function refreshQualityOptions(extra){
+    if (!checkQuality) return;
+    const set = new Set(defaultQualityOptions);
+    (checklistEntries || []).forEach(e => {
+      const q = normalizeQualityValue(e?.quality || "");
+      if (q) set.add(q);
+    });
+    if (extra) set.add(normalizeQualityValue(extra));
+    const opts = Array.from(set).map(q => `<option>${esc(q)}</option>`).join("");
+    checkQuality.innerHTML = opts;
+  }
+
+  function showToast(msg, isError){
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.toggle('error', !!isError);
+    toast.hidden = false;
+    clearTimeout(toast._tid);
+    toast._tid = setTimeout(()=>{ toast.hidden = true; }, 2400);
+  }
+
+  function syncDisplayToTextarea(){
+    if (!definedDisplay || !definedText) return;
+    const html = definedDisplay.innerHTML
+      .replace(/<div><br><\/div>/gi, "\n")
+      .replace(/<div>/gi, "\n")
+      .replace(/<br>/gi, "\n")
+      .replace(/&nbsp;/gi, " ");
+    definedText.value = html.replace(/\u00a0/g, " ");
+  }
+
+  function syncTextareaToDisplay(){
+    if (!definedDisplay || !definedText) return;
+    const val = (definedText.value || "").trim();
+    definedDisplay.innerHTML = val ? esc(val).replace(/\n/g, "<br>") : "";
+  }
+
+  function setMetrics(){
+    const items = state.items || [];
+    const total = items.length;
+    const active = items.filter(i => (i.status||"").toLowerCase() === "active").length;
+    const focus = items.filter(i => (i.status||"").toLowerCase() === "focus").length;
+    if (metrics.active) metrics.active.textContent = active;
+    if (metrics.focus) metrics.focus.textContent = focus;
+    if (metrics.total) metrics.total.textContent = total;
+  }
+
+  function renderFocus(){
+    const focusItems = (state.items || []).filter(i => (i.status||"").toLowerCase() === "focus");
+    const list = focusItems.length ? focusItems : (state.items || []).slice(0, 2);
+    if (!list.length){
+      focusList.innerHTML = "<div class='empty-card'>Set a rule to Focus to pin it here.</div>";
+      return;
+    }
+    focusList.innerHTML = list.map(r => `
+      <div class="focus-item">
+        <div class="title">${esc(r.title)}</div>
+        <div class="meta">
+          <span class="pill status-${(r.status||'').toLowerCase()}">${esc(r.status||'Active')}</span>
+          <span class="pill">${esc(r.category||'General')}</span>
+        </div>
+        <div class="muted">${esc(r.detail||'')}</div>
+      </div>
+    `).join("");
+  }
+
+  function renderFilters(){
+    const cats = new Set(defaultCategories);
+    (state.items || []).forEach(it => {
+      const c = (it.category || "").trim();
+      if (c) cats.add(c);
+    });
+    const opts = ['<option value="">All categories</option>'];
+    Array.from(cats).sort((a,b)=>a.localeCompare(b)).forEach(c => {
+      const safe = esc(c);
+      opts.push(`<option value="${safe}">${safe}</option>`);
+    });
+    categoryFilter.innerHTML = opts.join("");
+  }
+
+  function ruleCardHtml(r){
+    const status = (r.status || "Active");
+    const statusClass = "status-" + status.toLowerCase();
+    const desc = esc(r.detail || "").replace(/\n/g, "<br>");
+    return `
+      <div class="rule-card">
+        <div class="rule-meta">
+          <span class="pill ${statusClass}">${esc(status)}</span>
+          <span class="pill">${esc(r.category || "General")}</span>
+        </div>
+        <h4>${esc(r.title)}</h4>
+        <div class="rule-desc">${desc || "<span class='muted'>No notes added yet.</span>"}</div>
+        <div class="rule-actions">
+          <button data-action="toggle" data-id="${esc(r.id)}">${status.toLowerCase() === "paused" ? "Activate" : "Pause"}</button>
+          <button data-action="focus" data-id="${esc(r.id)}">Set Focus</button>
+          <button data-action="edit" data-id="${esc(r.id)}">Edit</button>
+          <button data-action="remove" data-id="${esc(r.id)}">Remove</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function filteredRules(){
+    const cat = (categoryFilter.value || "").toLowerCase();
+    const stat = (statusFilter.value || "").toLowerCase();
+    const order = { "focus":0, "active":1, "paused":2 };
+    return (state.items || []).filter(r => {
+      const c = (r.category || "").toLowerCase();
+      const s = (r.status || "").toLowerCase();
+      const catOk = !cat || c === cat;
+      const statOk = !stat || s === stat;
+      return catOk && statOk;
+    }).sort((a,b) => {
+      const sa = (a.status || "").toLowerCase();
+      const sb = (b.status || "").toLowerCase();
+      const ordA = order.hasOwnProperty(sa) ? order[sa] : 9;
+      const ordB = order.hasOwnProperty(sb) ? order[sb] : 9;
+      if (ordA !== ordB) return ordA - ordB;
+      const catSort = (a.category || "").localeCompare(b.category || "");
+      if (catSort !== 0) return catSort;
+      return (a.title || "").localeCompare(b.title || "");
+    });
+  }
+
+  function renderRules(){
+    const items = filteredRules();
+    const totalPages = Math.max(1, Math.ceil(items.length / RULES_PER_PAGE));
+    if (rulePage > totalPages) rulePage = totalPages;
+    const start = (rulePage - 1) * RULES_PER_PAGE;
+    const slice = items.slice(start, start + RULES_PER_PAGE);
+
+    rulesGrid.innerHTML = slice.length ? slice.map(ruleCardHtml).join("") :
+      "<div class='empty-card'>No rules yet. Add one on the right and save.</div>";
+
+    if (rulePageMeta){
+      rulePageMeta.textContent = `Page ${rulePage} of ${totalPages}`;
+    }
+    if (prevRulePage) prevRulePage.disabled = (rulePage <= 1);
+    if (nextRulePage) nextRulePage.disabled = (rulePage >= totalPages);
+  }
+
+  // --- Checklist helpers ---
+  const checklistTpl = () => (checklistTemplate && checklistTemplate.length ? checklistTemplate : clientChecklistTemplate);
+
+  function blankChecklistEntry(dstr){
+    const dateVal = dstr || checklistToday || new Date().toISOString().slice(0,10);
+    return {
+      date: dateVal,
+      checks: checklistTpl().map(c => ({ id: c.id, label: c.label, checked: false })),
+      win_pct: winPctForDate(dateVal),
+      pnl: pnlForDate(dateVal),
+      breaches: 0,
+      quality: "Some trading opportunities",
+      notes: "",
+      score: 0,
+      completed: false,
+    };
+  }
+
+  function applyTemplateToEntry(entry){
+    const base = checklistTpl();
+    const current = Array.isArray(entry?.checks) ? entry.checks : [];
+    const map = {};
+    current.forEach(c => { if (c && c.id) map[c.id] = c; });
+    const checks = base.map(b => {
+      const ex = map[b.id] || {};
+      return { id: b.id, label: ex.label || b.label, checked: !!ex.checked };
+    });
+    const storedWin = normalizeWinPct(entry?.win_pct);
+    const legacyRr = normalizeWinPct(entry?.rr);
+    const computedWin = winPctForDate(entry?.date || checklistToday);
+    const winPct = (computedWin === 0 || computedWin)
+      ? computedWin
+      : ((storedWin === 0 || storedWin) ? storedWin : ((legacyRr === 0 || legacyRr) ? legacyRr : ""));
+    const storedPnl = normalizePnl(entry?.pnl ?? entry?.net_pl ?? entry?.pl);
+    const computedPnl = pnlForDate(entry?.date || checklistToday);
+    const pnl = (computedPnl === 0 || computedPnl) ? computedPnl : storedPnl;
+    const out = {
+      date: entry?.date || checklistToday || new Date().toISOString().slice(0,10),
+      checks,
+      win_pct: winPct,
+      pnl: pnl,
+      breaches: Math.max(0, parseInt(entry?.breaches || 0, 10) || 0),
+      quality: normalizeQualityValue(entry?.quality || "Some trading opportunities"),
+      notes: entry?.notes || "",
+    };
+    const scoreInfo = scoreForEntry(out);
+    out.score = scoreInfo.score;
+    out.completed = scoreInfo.done === scoreInfo.total && scoreInfo.total > 0;
+    return out;
+  }
+
+  function scoreForEntry(entry){
+    const total = (entry?.checks || []).length || checklistTpl().length || 1;
+    const done = (entry?.checks || []).filter(c => c.checked).length;
+    const raw = (done * 100) / total;
+    const score = Math.round(raw * 10) / 10;
+    return { done, total, score };
+  }
+
+  function prettyDate(iso){
+    try{
+      const d = new Date(iso + "T00:00:00");
+      return d.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" });
+    }catch(e){ return iso || ""; }
+  }
+
+  function renderChecklist(entry){
+    if (!checkDate) return;
+    checklistEntry = applyTemplateToEntry(entry || blankChecklistEntry(checklistToday));
+    checkDate.value = checklistEntry.date;
+    refreshQualityOptions(checklistEntry.quality);
+    if (checklistItems){
+      checklistItems.innerHTML = checklistEntry.checks.map(c => `
+        <label class="check-item">
+          <input type="checkbox" data-id="${esc(c.id)}" ${c.checked ? "checked" : ""}>
+          <div>
+            <div class="title">${esc(c.label)}</div>
+            <div class="muted">Mark if you upheld this rule today.</div>
+          </div>
+        </label>
+      `).join("");
+    }
+    if (checkWinPct) checkWinPct.value = (checklistEntry.win_pct === 0 ? 0 : (checklistEntry.win_pct ?? ""));
+    if (checkBreaches) checkBreaches.value = checklistEntry.breaches ?? 0;
+    if (checkQuality) checkQuality.value = checklistEntry.quality || "Some trading opportunities";
+    if (checkNotes) checkNotes.value = checklistEntry.notes || "";
+    updateChecklistScore();
+    updateWinPreview();
+  }
+
+  function updateChecklistScore(){
+    if (!checkScore || !checklistEntry) return;
+    const info = scoreForEntry(checklistEntry);
+    checklistEntry.score = info.score;
+    checklistEntry.completed = info.done === info.total && info.total > 0;
+    checkScore.textContent = `${info.score}% complete`;
+  }
+
+  function updateWinPreview(){
+    if (!checkWinPreview || !checklistEntry) return;
+    const val = checklistEntry.win_pct;
+    checkWinPreview.textContent = val === "" ? "Win% --" : `Win% ${val}%`;
+  }
+
+  function renderChecklistHistory(){
+    if (!checkHistory) return;
+    const rows = (checklistEntries || []).slice(0, 120);
+    if (!rows.length){
+      checkHistory.innerHTML = "<div class='empty-card'>No checklist entries saved yet.</div>";
+      return;
+    }
+    const html = rows.map(e => {
+      const info = scoreForEntry(e);
+      const win = (e.win_pct === 0 ? "0" : (e.win_pct ?? "")).toString();
+      const winText = win ? `Win% ${win}%` : "Win% --";
+      const badgeCls = info.score >= 80 ? "badge pos" : "badge";
+      const meterWidth = Math.min(100, Math.max(0, info.score));
+      const qualityLabel = "Day's quality:";
+      const qualityVal = esc(e.quality || "Some trading opportunities");
+      const computedPnl = pnlForDate(e.date);
+      const storedPnl = normalizePnl(e.pnl ?? e.net_pl ?? e.pl);
+      const pnlVal = (computedPnl === 0 || computedPnl) ? computedPnl : storedPnl;
+      const pnlDisplay = (typeof pnlVal === "number" && !Number.isNaN(pnlVal)) ? pnlVal.toFixed(2) : pnlVal;
+      const pnlText = pnlDisplay === "" ? "PnL --" : `PnL ${pnlVal > 0 ? "+" : ""}${pnlDisplay}`;
+      const pnlClass = pnlVal === "" ? "pnl-pill flat" : (pnlVal > 0 ? "pnl-pill pos" : (pnlVal < 0 ? "pnl-pill neg" : "pnl-pill flat"));
+      return `
+        <div class="history-item">
+          <div class="top">
+            <div>${esc(prettyDate(e.date))}</div>
+            <div class="${badgeCls}">${info.score}%</div>
+          </div>
+          <div class="muted">Checks: ${info.done}/${info.total} &bull; ${esc(winText)} &bull; Breaks: ${e.breaches ?? 0}</div>
+          <div class="meter"><div style="width:${meterWidth}%"></div></div>
+          <div class="note">
+            <div>${esc(e.notes || "No notes for this day.")}</div>
+            <div class="quality-line">${qualityLabel} <span class="quality-value">${qualityVal}</span> <span class="${pnlClass}">${esc(pnlText)}</span></div>
+          </div>
+        </div>
+      `;
+    }).join("");
+    checkHistory.innerHTML = html;
+  }
+
+  function renderChecklistSummary(){
+    const rows = checklistEntries || [];
+    if (!rows.length){
+      if (avgComplete) avgComplete.textContent = "--%";
+      if (avgWin) avgWin.textContent = "--";
+      if (streakDays) streakDays.textContent = "0";
+      return;
+    }
+    const avgScore = rows.reduce((acc, e) => acc + (scoreForEntry(e).score || 0), 0) / rows.length;
+    const winVals = rows.map(e => parseFloat(e.win_pct)).filter(v => !Number.isNaN(v));
+    const avgWinPct = winVals.length ? (winVals.reduce((a,b)=>a+b,0) / winVals.length) : 0;
+    const streak = (() => {
+      const sorted = [...rows].sort((a,b) => (b.date||"").localeCompare(a.date||""));
+      let prev = null;
+      let s = 0;
+      for (const e of sorted){
+        const info = scoreForEntry(e);
+        if (info.score < 80) break;
+        const dt = e.date ? new Date(e.date + "T00:00:00") : null;
+        if (!dt || Number.isNaN(dt.getTime())) break;
+        if (prev){
+          const diffDays = (prev - dt) / (1000*60*60*24);
+          if (diffDays > 1.1 || diffDays < -0.1) break;
+        }
+        s += 1;
+        prev = dt;
+      }
+      return s;
+    })();
+
+    if (avgComplete) avgComplete.textContent = `${avgScore.toFixed(1)}%`;
+    if (avgWin) avgWin.textContent = winVals.length ? `${avgWinPct.toFixed(1)}%` : "--";
+    if (streakDays) streakDays.textContent = String(streak);
+  }
+
+  function reportRows(){
+    const rows = (checklistEntries || []).map(e => {
+      const dateStr = (e?.date || "").trim();
+      if (!dateStr) return null;
+      const dt = new Date(dateStr + "T00:00:00");
+      if (Number.isNaN(dt.getTime())) return null;
+      const info = scoreForEntry(e);
+      return {
+        date: dateStr,
+        dateObj: dt,
+        quality: normalizeQualityValue(e?.quality || ""),
+        pnl: normalizePnl(e?.pnl),
+        win: normalizeWinPct(e?.win_pct),
+        breaches: Math.max(0, parseInt(e?.breaches || 0, 10) || 0),
+        score: isNum(info.score) ? info.score : 0,
+        notes: e?.notes || "",
+      };
+    }).filter(Boolean);
+    return rows;
+  }
+
+  function avgOf(values){
+    const nums = values.filter(isNum);
+    if (!nums.length) return null;
+    return nums.reduce((a,b)=>a+b,0) / nums.length;
+  }
+
+  function renderQualityReport(rows){
+    if (!qualityReportGrid) return;
+    if (!rows.length){
+      qualityReportGrid.innerHTML = "<div class='empty-card'>No daily tracking entries yet.</div>";
+      return;
+    }
+
+    const groups = {};
+    const ordered = [...defaultQualityOptions];
+    rows.forEach(r => {
+      const q = r.quality || "";
+      if (!q) return;
+      if (!groups[q]) groups[q] = [];
+      groups[q].push(r);
+      if (!ordered.includes(q)) ordered.push(q);
+    });
+
+    const cards = ordered.map(q => {
+      const items = groups[q] || [];
+      const pnls = items.map(i => i.pnl).filter(isNum);
+      const wins = items.map(i => i.win).filter(isNum);
+      const avgPnl = pnls.length ? (pnls.reduce((a,b)=>a+b,0) / pnls.length) : null;
+      const avgWin = wins.length ? (wins.reduce((a,b)=>a+b,0) / wins.length) : null;
+      const pnlClass = avgPnl === null ? "flat" : (avgPnl > 0 ? "pos" : (avgPnl < 0 ? "neg" : "flat"));
+      const pnlText = avgPnl === null ? "--" : formatCurrency(avgPnl);
+      const dayCount = items.length;
+      const pnlCount = pnls.length;
+      const dayText = dayCount
+        ? (pnlCount !== dayCount ? `${pnlCount}/${dayCount} days with PnL` : `${dayCount} day${dayCount === 1 ? "" : "s"}`)
+        : "0 days";
+      const winText = avgWin === null ? "Avg Win% --" : `Avg Win% ${avgWin.toFixed(1)}%`;
+      return `
+        <div class="report-tile">
+          <div class="report-title">${esc(q)}</div>
+          <div class="report-value ${pnlClass}">${pnlText}</div>
+          <div class="report-meta">Avg PnL - ${dayText}</div>
+          <div class="report-meta muted">${esc(winText)}</div>
+        </div>
+      `;
+    }).join("");
+
+    qualityReportGrid.innerHTML = cards;
+  }
+
+  function renderQualityTotalReport(rows){
+    if (!qualityTotalGrid) return;
+    if (!rows.length){
+      qualityTotalGrid.innerHTML = "<div class='empty-card'>No daily tracking entries yet.</div>";
+      return;
+    }
+
+    const groups = {};
+    const ordered = [...defaultQualityOptions];
+    rows.forEach(r => {
+      const q = r.quality || "";
+      if (!q) return;
+      if (!groups[q]) groups[q] = [];
+      groups[q].push(r);
+      if (!ordered.includes(q)) ordered.push(q);
+    });
+
+    const cards = ordered.map(q => {
+      const items = groups[q] || [];
+      const pnls = items.map(i => i.pnl).filter(isNum);
+      const totalPnl = pnls.length ? pnls.reduce((a,b)=>a+b,0) : null;
+      const pnlClass = totalPnl === null ? "flat" : (totalPnl > 0 ? "pos" : (totalPnl < 0 ? "neg" : "flat"));
+      const pnlText = totalPnl === null ? "--" : formatCurrency(totalPnl);
+      const dayCount = items.length;
+      const pnlCount = pnls.length;
+      const dayText = dayCount
+        ? (pnlCount !== dayCount ? `${pnlCount}/${dayCount} days with PnL` : `${dayCount} day${dayCount === 1 ? "" : "s"}`)
+        : "0 days";
+      return `
+        <div class="report-tile">
+          <div class="report-title">${esc(q)}</div>
+          <div class="report-value ${pnlClass}">${pnlText}</div>
+          <div class="report-meta">Total PnL - ${dayText}</div>
+        </div>
+      `;
+    }).join("");
+
+    qualityTotalGrid.innerHTML = cards;
+  }
+
+  function renderBreachReport(rows){
+    if (!breachReportGrid) return;
+    if (!rows.length){
+      breachReportGrid.innerHTML = "<div class='empty-card'>No entries yet.</div>";
+      return;
+    }
+    const buckets = [
+      { label: "0 breaks", test: (b) => b === 0 },
+      { label: "1-2 breaks", test: (b) => b >= 1 && b <= 2 },
+      { label: "3+ breaks", test: (b) => b >= 3 },
+    ];
+    const cards = buckets.map(b => {
+      const items = rows.filter(r => b.test(r.breaches));
+      const avgPnl = avgOf(items.map(i => i.pnl));
+      const avgScore = avgOf(items.map(i => i.score));
+      const pnlClass = avgPnl === null ? "flat" : (avgPnl > 0 ? "pos" : (avgPnl < 0 ? "neg" : "flat"));
+      const pnlText = avgPnl === null ? "--" : formatCurrency(avgPnl);
+      const dayText = `${items.length} day${items.length === 1 ? "" : "s"}`;
+      const scoreText = `Avg score ${formatPercent(avgScore)}`;
+      return `
+        <div class="report-tile">
+          <div class="report-title">${esc(b.label)}</div>
+          <div class="report-value ${pnlClass}">${pnlText}</div>
+          <div class="report-meta">Avg PnL - ${dayText}</div>
+          <div class="report-meta muted">${esc(scoreText)}</div>
+        </div>
+      `;
+    }).join("");
+    breachReportGrid.innerHTML = cards;
+  }
+
+  function renderCompletionReport(rows){
+    if (!completionReportGrid) return;
+    if (!rows.length){
+      completionReportGrid.innerHTML = "<div class='empty-card'>No entries yet.</div>";
+      return;
+    }
+    const buckets = [
+      { label: "90%+", test: (s) => s >= 90 },
+      { label: "70-89%", test: (s) => s >= 70 && s < 90 },
+      { label: "Below 70%", test: (s) => s < 70 },
+    ];
+    const cards = buckets.map(b => {
+      const items = rows.filter(r => b.test(r.score));
+      const avgPnl = avgOf(items.map(i => i.pnl));
+      const avgWin = avgOf(items.map(i => i.win));
+      const pnlClass = avgPnl === null ? "flat" : (avgPnl > 0 ? "pos" : (avgPnl < 0 ? "neg" : "flat"));
+      const pnlText = avgPnl === null ? "--" : formatCurrency(avgPnl);
+      const dayText = `${items.length} day${items.length === 1 ? "" : "s"}`;
+      const winText = `Avg Win% ${formatPercent(avgWin)}`;
+      return `
+        <div class="report-tile">
+          <div class="report-title">${esc(b.label)}</div>
+          <div class="report-value ${pnlClass}">${pnlText}</div>
+          <div class="report-meta">Avg PnL - ${dayText}</div>
+          <div class="report-meta muted">${esc(winText)}</div>
+        </div>
+      `;
+    }).join("");
+    completionReportGrid.innerHTML = cards;
+  }
+
+  function renderQualityDistribution(rows){
+    if (!qualityDistGrid) return;
+    if (!rows.length){
+      qualityDistGrid.innerHTML = "<div class='empty-card'>No entries yet.</div>";
+      return;
+    }
+    const groups = {};
+    const ordered = [...defaultQualityOptions];
+    rows.forEach(r => {
+      const q = r.quality || "";
+      if (!q) return;
+      if (!groups[q]) groups[q] = [];
+      groups[q].push(r);
+      if (!ordered.includes(q)) ordered.push(q);
+    });
+    const cards = ordered.map(q => {
+      const items = groups[q] || [];
+      const avgScore = avgOf(items.map(i => i.score));
+      const avgWin = avgOf(items.map(i => i.win));
+      const countText = `${items.length} day${items.length === 1 ? "" : "s"}`;
+      const scoreText = `Avg score ${formatPercent(avgScore)}`;
+      const winText = `Avg Win% ${formatPercent(avgWin)}`;
+      return `
+        <div class="report-tile">
+          <div class="report-title">${esc(q)}</div>
+          <div class="report-value flat">${esc(countText)}</div>
+          <div class="report-meta">${esc(scoreText)}</div>
+          <div class="report-meta muted">${esc(winText)}</div>
+        </div>
+      `;
+    }).join("");
+    qualityDistGrid.innerHTML = cards;
+  }
+
+  function renderBestWorstDays(rows){
+    if (!bestDaysList || !worstDaysList) return;
+    const withPnl = rows.filter(r => isNum(r.pnl));
+    const best = [...withPnl].sort((a,b) => b.pnl - a.pnl).slice(0, 3);
+    const worst = [...withPnl].sort((a,b) => a.pnl - b.pnl).slice(0, 3);
+
+    const listHtml = (title, items) => {
+      if (!items.length){
+        return `<div class="report-list-title">${esc(title)}</div><div class="empty-card">No days yet.</div>`;
+      }
+      const rowsHtml = items.map(item => {
+        const pnlClass = item.pnl > 0 ? "pos" : (item.pnl < 0 ? "neg" : "flat");
+        const pnlText = formatCurrency(item.pnl);
+        const meta = `Score ${item.score.toFixed(1)}% \u2022 Breaks ${item.breaches} \u2022 ${item.quality || "Some trading opportunities"}`;
+        const note = truncateText(item.notes || "No notes for this day.", 90);
+        return `
+          <div class="report-list-item">
+            <div class="report-list-main">
+              <div class="report-list-date">${esc(prettyDate(item.date))}</div>
+              <div class="report-list-meta">${esc(meta)}</div>
+              <div class="report-list-note">${esc(note)}</div>
+            </div>
+            <div class="report-pill ${pnlClass}">${esc(pnlText)}</div>
+          </div>
+        `;
+      }).join("");
+      return `<div class="report-list-title">${esc(title)}</div>${rowsHtml}`;
+    };
+
+    bestDaysList.innerHTML = listHtml("Best days", best);
+    worstDaysList.innerHTML = listHtml("Worst days", worst);
+  }
+
+  function chartTheme(){
+    const styles = getComputedStyle(document.documentElement);
+    return {
+      fg: (styles.getPropertyValue('--fg') || "").trim() || "#e2e8f0",
+      muted: (styles.getPropertyValue('--muted') || "").trim() || "#94a3b8",
+      border: (styles.getPropertyValue('--border') || "").trim() || "rgba(148,163,184,0.25)",
+      accent: (styles.getPropertyValue('--accent') || "").trim() || "#f0792f",
+      pos: (styles.getPropertyValue('--pos') || "").trim() || "#38bdf8",
+      neg: (styles.getPropertyValue('--neg') || "").trim() || "#f87171",
+    };
+  }
+
+  function baseChartLayout(){
+    const c = chartTheme();
+    return {
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(0,0,0,0)",
+      font: { color: c.fg },
+      margin: { l: 44, r: 20, t: 10, b: 40 },
+      xaxis: { gridcolor: c.border, zerolinecolor: c.border },
+      yaxis: { gridcolor: c.border, zerolinecolor: c.border },
+      legend: { font: { color: c.muted } },
+    };
+  }
+
+  function linearFit(x, y){
+    const n = x.length;
+    if (n < 2) return null;
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (let i = 0; i < n; i++){
+      sumX += x[i];
+      sumY += y[i];
+      sumXY += x[i] * y[i];
+      sumXX += x[i] * x[i];
+    }
+    const denom = (n * sumXX - sumX * sumX);
+    if (!denom) return null;
+    const slope = (n * sumXY - sumX * sumY) / denom;
+    const intercept = (sumY - slope * sumX) / n;
+    return { slope, intercept };
+  }
+
+  function renderDisciplineScatter(rows){
+    if (!disciplineScatter || typeof Plotly === "undefined") return;
+    const points = rows.filter(r => isNum(r.pnl) && isNum(r.score));
+    if (points.length < 2){
+      disciplineScatter.innerHTML = "<div class='empty-card'>Not enough data for a scatter plot yet.</div>";
+      return;
+    }
+    const c = chartTheme();
+    const x = points.map(p => p.score);
+    const y = points.map(p => p.pnl);
+    const markerColors = points.map(p => p.pnl > 0 ? c.pos : (p.pnl < 0 ? c.neg : c.muted));
+    const text = points.map(p => prettyDate(p.date));
+    const series = [{
+      type: "scatter",
+      mode: "markers",
+      name: "Days",
+      x,
+      y,
+      text,
+      marker: { color: markerColors, size: 8, opacity: 0.85 },
+      hovertemplate: "Date: %{text}<br>Score: %{x:.1f}%<br>PnL: %{y:.2f}<extra></extra>",
+    }];
+
+    const fit = linearFit(x, y);
+    if (fit){
+      const minX = Math.min(...x);
+      const maxX = Math.max(...x);
+      series.push({
+        type: "scatter",
+        mode: "lines",
+        name: "Trend",
+        x: [minX, maxX],
+        y: [fit.slope * minX + fit.intercept, fit.slope * maxX + fit.intercept],
+        line: { color: c.accent, width: 2 },
+        hoverinfo: "skip",
+      });
+    }
+
+    const layout = baseChartLayout();
+    layout.xaxis.title = "Checklist score (%)";
+    layout.yaxis.title = "PnL";
+    layout.showlegend = !!fit;
+
+    Plotly.newPlot(disciplineScatter, series, layout, { displayModeBar: false, responsive: true });
+  }
+
+  function rollingSeries(data, key, window){
+    const x = [];
+    const y = [];
+    for (let i = 0; i < data.length; i++){
+      x.push(data[i].date);
+      const vals = [];
+      const start = Math.max(0, i - window + 1);
+      for (let j = start; j <= i; j++){
+        const v = data[j][key];
+        if (isNum(v)) vals.push(v);
+      }
+      y.push(vals.length ? (vals.reduce((a,b)=>a+b,0) / vals.length) : null);
+    }
+    return { x, y };
+  }
+
+  function renderRollingCharts(rows){
+    if (typeof Plotly === "undefined") return;
+    const sorted = [...rows].sort((a,b) => a.dateObj - b.dateObj);
+
+    if (rollingPnlChart){
+      if (sorted.length < 2){
+        rollingPnlChart.innerHTML = "<div class='empty-card'>Not enough data for rolling PnL yet.</div>";
+      } else {
+        const c = chartTheme();
+        const s7 = rollingSeries(sorted, "pnl", 7);
+        const s30 = rollingSeries(sorted, "pnl", 30);
+        const layout = baseChartLayout();
+        layout.yaxis.title = "PnL";
+        layout.xaxis.title = "Date";
+        layout.showlegend = true;
+        Plotly.newPlot(rollingPnlChart, [
+          { type: "scatter", mode: "lines", name: "7-day", x: s7.x, y: s7.y, line: { color: c.accent, width: 2 } },
+          { type: "scatter", mode: "lines", name: "30-day", x: s30.x, y: s30.y, line: { color: c.muted, width: 2, dash: "dot" } },
+        ], layout, { displayModeBar: false, responsive: true });
+      }
+    }
+
+    if (rollingScoreChart){
+      if (sorted.length < 2){
+        rollingScoreChart.innerHTML = "<div class='empty-card'>Not enough data for rolling scores yet.</div>";
+      } else {
+        const c = chartTheme();
+        const s7 = rollingSeries(sorted, "score", 7);
+        const s30 = rollingSeries(sorted, "score", 30);
+        const layout = baseChartLayout();
+        layout.yaxis.title = "Score (%)";
+        layout.yaxis.range = [0, 100];
+        layout.xaxis.title = "Date";
+        layout.showlegend = true;
+        Plotly.newPlot(rollingScoreChart, [
+          { type: "scatter", mode: "lines", name: "7-day", x: s7.x, y: s7.y, line: { color: c.pos, width: 2 } },
+          { type: "scatter", mode: "lines", name: "30-day", x: s30.x, y: s30.y, line: { color: c.muted, width: 2, dash: "dot" } },
+        ], layout, { displayModeBar: false, responsive: true });
+      }
+    }
+  }
+
+  function renderReports(){
+    const rows = reportRows();
+    renderQualityReport(rows);
+    renderQualityTotalReport(rows);
+    renderBreachReport(rows);
+    renderCompletionReport(rows);
+    renderQualityDistribution(rows);
+    renderBestWorstDays(rows);
+    renderDisciplineScatter(rows);
+    renderRollingCharts(rows);
+  }
+
+  function loadChecklist(){
+    fetch("/api/rules/checklist").then(r => r.json()).then(data => {
+      checklistWinRates = data.win_rates || {};
+      checklistPnls = data.pnl_by_day || data.pnls || {};
+      checklistTemplate = Array.isArray(data.template) ? data.template : clientChecklistTemplate;
+      checklistEntries = Array.isArray(data.entries) ? data.entries.map(applyTemplateToEntry) : [];
+      checklistEntries.sort((a,b) => (b.date||"").localeCompare(a.date||""));
+      checklistToday = data.today || new Date().toISOString().slice(0,10);
+      refreshQualityOptions();
+      const todays = checklistEntries.find(e => e.date === checklistToday);
+      renderChecklist(todays || blankChecklistEntry(checklistToday));
+      renderChecklistHistory();
+      renderChecklistSummary();
+      renderReports();
+    }).catch(() => {
+      showToast("Unable to load checklist.", true);
+    });
+  }
+
+  function syncEntryFromInputs(){
+    if (!checklistEntry) return;
+    checklistEntry.date = (checkDate?.value || checklistEntry.date || checklistToday || new Date().toISOString().slice(0,10));
+    const computedWin = winPctForDate(checklistEntry.date);
+    const inputWin = checkWinPct ? normalizeWinPct(checkWinPct.value) : normalizeWinPct(checklistEntry.win_pct);
+    checklistEntry.win_pct = (computedWin === 0 || computedWin) ? computedWin : inputWin;
+    if (checkWinPct) checkWinPct.value = (checklistEntry.win_pct === 0 ? 0 : (checklistEntry.win_pct ?? ""));
+    const computedPnl = pnlForDate(checklistEntry.date);
+    const storedPnl = normalizePnl(checklistEntry.pnl);
+    checklistEntry.pnl = (computedPnl === 0 || computedPnl) ? computedPnl : storedPnl;
+    checklistEntry.breaches = checkBreaches ? Math.max(0, parseInt(checkBreaches.value || 0, 10) || 0) : (checklistEntry.breaches || 0);
+    checklistEntry.quality = normalizeQualityValue(checkQuality ? (checkQuality.value || "Some trading opportunities") : (checklistEntry.quality || "Some trading opportunities"));
+    checklistEntry.notes = checkNotes ? (checkNotes.value || "") : (checklistEntry.notes || "");
+    const info = scoreForEntry(checklistEntry);
+    checklistEntry.score = info.score;
+    checklistEntry.completed = info.done === info.total && info.total > 0;
+    updateChecklistScore();
+    updateWinPreview();
+    return checklistEntry;
+  }
+
+  function saveChecklist(){
+    if (!checklistEntry) return;
+    syncEntryFromInputs();
+
+    fetch("/api/rules/checklist", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(checklistEntry)
+    }).then(r => {
+      if (!r.ok) throw new Error("save failed");
+      return r.json();
+    }).then(data => {
+      checklistEntries = Array.isArray(data.entries) ? data.entries.map(applyTemplateToEntry) : [];
+      checklistEntries.sort((a,b) => (b.date||"").localeCompare(a.date||""));
+      const currentSaved = checklistEntries.find(e => e.date === checklistEntry.date);
+      if (currentSaved){
+        renderChecklist(currentSaved);
+      }
+      renderChecklistHistory();
+      renderChecklistSummary();
+      renderReports();
+      showToast("Checklist saved");
+    }).catch(() => {
+      showToast("Could not save checklist.", true);
+    });
+  }
+
+  function clearHistory(){
+    fetch("/api/rules/checklist/clear", { method:"POST" })
+      .then(r => {
+        if (!r.ok) throw new Error("clear failed");
+        return r.json();
+      })
+      .then(() => {
+        checklistEntries = [];
+        renderChecklistHistory();
+        renderChecklistSummary();
+        renderReports();
+        showToast("History cleared");
+      })
+      .catch(() => showToast("Could not clear history.", true));
+  }
+
+  function persist(message){
+    syncDisplayToTextarea();
+    state.defined_rules = (definedText.value || "").trim();
+    return fetch("/api/rules", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(state)
+    }).then(r => {
+      if (!r.ok) throw new Error("save failed");
+      return r.json();
+    }).then(() => {
+      showToast(message || "Saved");
+      setMetrics();
+      renderFocus();
+      renderRules();
+    }).catch(() => {
+      showToast("Could not save right now.", true);
+    });
+  }
+
+  function loadRules(){
+    fetch("/api/rules").then(r => r.json()).then(data => {
+      state = {
+        defined_rules: data.defined_rules || "",
+        items: Array.isArray(data.items) ? data.items : []
+      };
+      definedText.value = state.defined_rules;
+      syncTextareaToDisplay();
+      renderFilters();
+      renderRules();
+      renderFocus();
+      setMetrics();
+    }).catch(() => {
+      showToast("Unable to load rules.", true);
+    });
+  }
+
+  function clearForm(){
+    editingId = null;
+    composerState.textContent = "Add rule";
+    ruleTitle.value = "";
+    ruleCategory.value = "Risk";
+    ruleStatus.value = "Active";
+    ruleDetail.value = "";
+  }
+
+  function startEdit(id){
+    const rule = (state.items || []).find(r => r.id === id);
+    if (!rule) return;
+    editingId = id;
+    composerState.textContent = "Edit rule";
+    ruleTitle.value = rule.title || "";
+    ruleCategory.value = rule.category || "Risk";
+    ruleStatus.value = rule.status || "Active";
+    ruleDetail.value = rule.detail || "";
+  }
+
+  function saveRule(){
+    const title = (ruleTitle.value || "").trim();
+    if (!title){
+      showToast("Add a rule title first.", true);
+      return;
+    }
+    const category = (ruleCategory.value || "General").trim() || "General";
+    const status = (ruleStatus.value || "Active").trim() || "Active";
+    const detail = (ruleDetail.value || "").trim();
+    const items = state.items || [];
+
+    if (editingId){
+      const idx = items.findIndex(r => r.id === editingId);
+      if (idx >= 0){
+        items[idx] = { ...items[idx], title, category, status, detail };
+      }
+    } else {
+      items.unshift({ id: newId(), title, category, status, detail });
+    }
+    state.items = items;
+    clearForm();
+    renderFilters();
+    renderRules();
+    renderFocus();
+    setMetrics();
+    persist("Rule saved");
+  }
+
+  function setTab(tab){
+    tabButtons.forEach(btn => {
+      const tgt = btn.dataset.tabtarget;
+      const isActive = tgt === tab;
+      btn.classList.toggle('active', isActive);
+    });
+    tabSections.forEach(sec => {
+      const isActive = sec.dataset.tab === tab;
+      sec.classList.toggle('hidden', !isActive);
+    });
+    if (tab === "reportTab"){
+      setTimeout(renderReports, 0);
+    }
+  }
+
+  // Event wiring
+  document.getElementById('saveRulesText').addEventListener('click', () => persist("Rules saved"));
+  document.getElementById('reloadRules').addEventListener('click', loadRules);
+  document.getElementById('saveRuleBtn').addEventListener('click', saveRule);
+  document.getElementById('cancelEdit').addEventListener('click', clearForm);
+  document.getElementById('newRuleBtn').addEventListener('click', () => { clearForm(); ruleTitle.focus(); });
+  if (definedDisplay) definedDisplay.addEventListener('input', syncDisplayToTextarea);
+  categoryFilter.addEventListener('change', renderRules);
+  statusFilter.addEventListener('change', renderRules);
+  if (prevRulePage) prevRulePage.addEventListener('click', () => { if (rulePage > 1) { rulePage--; renderRules(); } });
+  if (nextRulePage) nextRulePage.addEventListener('click', () => { rulePage++; renderRules(); });
+  if (heroNewRuleBtn) heroNewRuleBtn.addEventListener('click', () => {
+    if (composerCard) composerCard.scrollIntoView({ behavior:"smooth", block:"start" });
+    if (ruleTitle) ruleTitle.focus();
+  });
+
+  rulesGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    if (action === "edit"){
+      startEdit(id);
+      ruleTitle.focus();
+    } else if (action === "remove"){
+      state.items = (state.items || []).filter(r => r.id !== id);
+      renderFilters();
+      renderRules();
+      renderFocus();
+      setMetrics();
+      persist("Rule removed");
+    } else if (action === "toggle"){
+      state.items = (state.items || []).map(r => r.id === id ? { ...r, status: (r.status||"").toLowerCase() === "paused" ? "Active" : "Paused" } : r);
+      renderRules();
+      renderFocus();
+      setMetrics();
+      persist("Status updated");
+    } else if (action === "focus"){
+      state.items = (state.items || []).map(r => r.id === id ? { ...r, status: "Focus" } : r);
+      renderRules();
+      renderFocus();
+      setMetrics();
+      persist("Pinned to focus");
+    }
+  });
+
+  if (checklistItems){
+    checklistItems.addEventListener('change', (e) => {
+      const cb = e.target.closest('input[type="checkbox"][data-id]');
+      if (!cb || !checklistEntry) return;
+      const id = cb.dataset.id;
+      checklistEntry.checks = (checklistEntry.checks || []).map(c => c.id === id ? { ...c, checked: cb.checked } : c);
+      syncEntryFromInputs();
+    });
+  }
+  if (checkDate){
+    checkDate.addEventListener('change', () => {
+      const d = checkDate.value;
+      const existing = (checklistEntries || []).find(e => e.date === d);
+      renderChecklist(existing || blankChecklistEntry(d));
+    });
+  }
+  if (checkBreaches) checkBreaches.addEventListener('input', syncEntryFromInputs);
+  if (checkQuality) checkQuality.addEventListener('change', syncEntryFromInputs);
+  if (checkNotes) checkNotes.addEventListener('input', () => {
+    syncEntryFromInputs();
+  });
+  if (saveChecklistBtn) saveChecklistBtn.addEventListener('click', saveChecklist);
+  if (clearHistoryBtn) clearHistoryBtn.addEventListener('click', () => {
+    if (confirm("Clear all checklist history?")) clearHistory();
+  });
+
+  loadRules();
+  loadChecklist();
+
+  // Tabs
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => setTab(btn.dataset.tabtarget));
+  });
+  setTab('rulesTab');
+})();
+</script>
